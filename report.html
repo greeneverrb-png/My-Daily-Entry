@@ -22,6 +22,7 @@ button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 
 <div class="topbar">
 <button onclick="location.href='index.html'">← Back</button>
+<button onclick="refreshTable()">Refresh</button>
 <button onclick="exportCSV()">Export Excel</button>
 <button onclick="showPrintRange()">Print</button>
 </div>
@@ -45,46 +46,48 @@ To <input type="date" id="to">
 
 <script>
 const key="dailyEntries";
-let data=JSON.parse(localStorage.getItem(key)||"[]");
+let data = JSON.parse(localStorage.getItem(key) || "[]");
 
-// --- Render Functions ---
-function render(){
+// --- Renders ---
+function render() {
  renderPrev();
  renderMonth();
  renderAll();
 }
 
-function renderPrev(){
- const grp={};
+// --- Previous Day Summary ---
+function renderPrev() {
+ const grp = {};
  data.forEach(d=>{
-  if(!grp[d.date]) grp[d.date]={nos:0,total:0};
-  grp[d.date].nos++; grp[d.date].total+=d.amt;
+  if(!grp[d.date]) grp[d.date] = {nos:0, total:0};
+  grp[d.date].nos++; grp[d.date].total += d.amt;
  });
- let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
+ let h = "<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
  Object.keys(grp).sort().reverse().forEach(d=>{
   h+=`<tr><td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total}</td></tr>`;
  });
- prevTable.innerHTML=h;
+ prevTable.innerHTML = h;
 }
 
-function renderMonth(){
- const grp={};
+// --- Monthly Summary ---
+function renderMonth() {
+ const grp = {};
  data.forEach(d=>{
-  const m=d.date.slice(0,7);
+  const m = d.date.slice(0,7);
   if(!grp[m]) grp[m]=0;
-  grp[m]+=d.amt;
+  grp[m] += d.amt;
  });
- let h="<tr><th>Month</th><th>Total</th></tr>";
+ let h = "<tr><th>Month</th><th>Total</th></tr>";
  Object.keys(grp).sort().forEach(m=>{
   h+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
  });
- monthTable.innerHTML=h;
+ monthTable.innerHTML = h;
 }
 
-function renderAll(){
+// --- All Records ---
+function renderAll() {
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
  data.forEach(d=>{
-  // Pass id directly as number, not string
   h+=`<tr>
    <td>${d.date}</td>
    <td>${d.org}</td>
@@ -96,19 +99,20 @@ function renderAll(){
    </td>
   </tr>`;
  });
- allTable.innerHTML=h;
+ allTable.innerHTML = h;
 }
 
-// --- Edit Function ---
+// --- Edit row ---
 function edit(id){
  const e = data.find(x => x.id === id);
  if(!e) return alert("Entry not found");
 
- // Inline prompt for editing
+ // Prompt user
  const nd = prompt("Date", e.date);
  const no = prompt("Organisation", e.org);
  const nn = prompt("Name", e.name);
  const na = prompt("Amount", e.amt);
+
  if(nd && no && nn && na){
      e.date = nd;
      e.org = no;
@@ -118,7 +122,7 @@ function edit(id){
  }
 }
 
-// --- Delete Function ---
+// --- Delete row ---
 function del(id){
  if(confirm("Delete?")){
   data = data.filter(x => x.id !== id);
@@ -126,9 +130,15 @@ function del(id){
  }
 }
 
-// --- Save and rerender ---
+// --- Save & rerender ---
 function save(){
  localStorage.setItem(key, JSON.stringify(data));
+ render();
+}
+
+// --- Refresh table button ---
+function refreshTable(){
+ data = JSON.parse(localStorage.getItem(key) || "[]");
  render();
 }
 
@@ -142,7 +152,7 @@ function exportCSV(){
  a.click();
 }
 
-// --- Print Functions ---
+// --- Print functions ---
 function showPrintRange(){
  document.getElementById("printRange").style.display="block";
 }
