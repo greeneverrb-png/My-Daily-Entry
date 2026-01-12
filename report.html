@@ -12,7 +12,9 @@ th,td{border:1px solid #ccc;padding:6px;text-align:left}
 button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 .edit{background:#1976d2;color:#fff}
 .del{background:#d32f2f;color:#fff}
-.topbar button{background:#444;color:#fff}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.topbar button{background:#444;color:#fff;font-size:14px;}
+.refreshBtn{margin-left:auto;background:white;color:green;font-size:16px;font-weight:bold;border-radius:50%;padding:8px 12px;}
 @media print{button,input{display:none}}
 </style>
 </head>
@@ -22,7 +24,7 @@ button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 
 <div class="topbar">
 <button onclick="location.href='index.html'">← Back</button>
-<button onclick="refreshTable()">Refresh</button>
+<button class="refreshBtn" id="refreshBtn">↻</button>
 <button onclick="exportCSV()">Export Excel</button>
 <button onclick="showPrintRange()">Print</button>
 </div>
@@ -48,7 +50,7 @@ To <input type="date" id="to">
 const key="dailyEntries";
 let data = JSON.parse(localStorage.getItem(key) || "[]");
 
-// --- Renders ---
+// --- Render functions ---
 function render() {
  renderPrev();
  renderMonth();
@@ -84,9 +86,10 @@ function renderMonth() {
  monthTable.innerHTML = h;
 }
 
-// --- All Records ---
+// --- All Records with row-specific Edit ---
 function renderAll() {
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
+ const table = document.createElement('tbody');
  data.forEach(d=>{
   h+=`<tr>
    <td>${d.date}</td>
@@ -94,53 +97,64 @@ function renderAll() {
    <td>${d.name}</td>
    <td>${d.amt}</td>
    <td>
-    <button class="edit" onclick="edit(${d.id})">Edit</button>
-    <button class="del" onclick="del(${d.id})">Del</button>
+    <button class="edit">Edit</button>
+    <button class="del">Del</button>
    </td>
   </tr>`;
  });
  allTable.innerHTML = h;
+
+ // Attach row-specific event listeners
+ const rows = allTable.querySelectorAll('tr');
+ rows.forEach((row, i)=>{
+   if(i===0) return; // skip header
+   const editBtn = row.querySelector('.edit');
+   const delBtn = row.querySelector('.del');
+   const entry = data[i-1];
+   editBtn.addEventListener('click', ()=>{
+     edit(entry);
+   });
+   delBtn.addEventListener('click', ()=>{
+     del(entry);
+   });
+ });
 }
 
-// --- Edit row ---
-function edit(id){
- const e = data.find(x => x.id === id);
- if(!e) return alert("Entry not found");
-
- // Prompt user
- const nd = prompt("Date", e.date);
- const no = prompt("Organisation", e.org);
- const nn = prompt("Name", e.name);
- const na = prompt("Amount", e.amt);
-
+// --- Edit row function ---
+function edit(entry){
+ if(!entry) return alert("Entry not found");
+ const nd = prompt("Date", entry.date);
+ const no = prompt("Organisation", entry.org);
+ const nn = prompt("Name", entry.name);
+ const na = prompt("Amount", entry.amt);
  if(nd && no && nn && na){
-     e.date = nd;
-     e.org = no;
-     e.name = nn;
-     e.amt = +na;
-     save();
+   entry.date = nd;
+   entry.org = no;
+   entry.name = nn;
+   entry.amt = +na;
+   save();
  }
 }
 
-// --- Delete row ---
-function del(id){
+// --- Delete row function ---
+function del(entry){
  if(confirm("Delete?")){
-  data = data.filter(x => x.id !== id);
-  save();
+   data = data.filter(x => x.id !== entry.id);
+   save();
  }
 }
 
-// --- Save & rerender ---
+// --- Save and rerender ---
 function save(){
  localStorage.setItem(key, JSON.stringify(data));
  render();
 }
 
 // --- Refresh table button ---
-function refreshTable(){
+document.getElementById('refreshBtn').addEventListener('click', ()=>{
  data = JSON.parse(localStorage.getItem(key) || "[]");
  render();
-}
+});
 
 // --- Export CSV ---
 function exportCSV(){
@@ -152,11 +166,10 @@ function exportCSV(){
  a.click();
 }
 
-// --- Print functions ---
+// --- Print ---
 function showPrintRange(){
  document.getElementById("printRange").style.display="block";
 }
-
 function doPrint(){
  const f=from.value, t=to.value;
  if(!f||!t) return alert("Select date range");
