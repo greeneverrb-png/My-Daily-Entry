@@ -1,108 +1,102 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Daily Entry App</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1976d2">
+<meta charset="UTF-8">
+<title>Daily Entry</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body{font-family:Arial,sans-serif;margin:10px;background:#f4f6f8}
-h1{margin:5px 0}
-.container{max-width:900px;margin:auto;background:#fff;padding:15px;border-radius:8px}
+body{font-family:Arial;background:#f2f4f7;margin:10px}
+.container{max-width:1000px;margin:auto;background:#fff;padding:15px;border-radius:8px}
 .row{display:flex;gap:10px;flex-wrap:wrap}
-input{padding:8px;width:100%;box-sizing:border-box}
-button{padding:10px 14px;border:none;border-radius:6px;cursor:pointer}
-#nextBtn{background:#1976d2;color:#fff;font-weight:bold}
-#reportBtn{background:#444;color:#fff;font-size:16px}
+input{padding:8px;width:100%}
+button{padding:10px;border:none;border-radius:6px;cursor:pointer}
+#nextBtn{background:#1976d2;color:#fff}
+#reportBtn{background:#444;color:#fff}
 .table{width:100%;border-collapse:collapse;margin-top:10px}
-.table th,.table td{border:1px solid #ccc;padding:6px;text-align:left}
-.search{margin-top:15px}
-.suggestion{background:#fff;border:1px solid #ccc;position:absolute;z-index:5}
-.suggestion div{padding:6px;cursor:pointer}
-.suggestion div:hover{background:#eee}
+.table th,.table td{border:1px solid #ccc;padding:6px}
+.summary{display:flex;justify-content:space-between;font-weight:bold;margin-top:10px}
 @media print{button,input{display:none}}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>Daily Entry</h1>
+<h2>Daily Entry</h2>
+
 <div class="row">
-<div style="flex:1"><input type="date" id="date"></div>
-<div style="flex:2;position:relative"><input placeholder="Organisation" id="org"><div id="orgSug" class="suggestion"></div></div>
-<div style="flex:2;position:relative"><input placeholder="Name" id="name"><div id="nameSug" class="suggestion"></div></div>
-<div style="flex:1;position:relative"><input placeholder="Amount" id="amt" type="number"><div id="amtSug" class="suggestion"></div></div>
-</div>
-<br>
-<div class="row">
+<input type="date" id="date">
+<input placeholder="Organisation" id="org">
+<input placeholder="Name" id="name">
+<input placeholder="Amount" id="amt" type="number">
+</div><br>
+
 <button id="nextBtn">NEXT</button>
 <button id="reportBtn">REPORT VIEW</button>
+
+<br><br>
+
+<input id="search" placeholder="Search by Date, Name or Organisation">
+
+<div id="todayBlock" style="display:none">
+<div class="summary">
+<div id="nos"></div>
+<div id="total"></div>
+</div>
+<table class="table" id="todayTable"></table>
 </div>
 
-<div class="search">
-<input placeholder="Search by Name or Organisation" id="mainSearch">
-</div>
+<table class="table" id="searchTable"></table>
 
-<table class="table" id="searchResult"></table>
 </div>
 
 <script>
-const storeKey='dailyEntries';
-function getData(){return JSON.parse(localStorage.getItem(storeKey)||'[]')}
-function setData(d){localStorage.setItem(storeKey,JSON.stringify(d))}
-
-const dateI=document.getElementById('date');
+const key="dailyEntries";
+const dateI=document.getElementById("date");
 dateI.value=new Date().toISOString().slice(0,10);
 
-function autoSuggest(input,id){
- const box=document.getElementById(id);
- input.oninput=()=>{
-  box.innerHTML='';
-  if(input.value.length<2) return;
-  const vals=[...new Set(getData().map(e=>e[input.id]).filter(v=>v&&v.toLowerCase().startsWith(input.value.toLowerCase())))];
-  vals.forEach(v=>{const d=document.createElement('div');d.textContent=v;d.onclick=()=>{input.value=v;box.innerHTML=''};box.appendChild(d)})
+function getData(){ return JSON.parse(localStorage.getItem(key)||"[]"); }
+function saveData(d){ localStorage.setItem(key,JSON.stringify(d)); }
+
+document.getElementById("nextBtn").onclick=()=>{
+ const org=orgI.value.trim();
+ const name=nameI.value.trim();
+ const amt=amtI.value.trim();
+ if(!org||!name||!amt){alert("Fill all");return;}
+ const d=getData();
+ d.push({id:Date.now(),date:dateI.value,org,name,amt:+amt});
+ saveData(d);
+ orgI.value=nameI.value=amtI.value="";
+ document.getElementById("search").value="";
+ render();
+}
+
+document.getElementById("reportBtn").onclick=()=>location.href="report.html";
+
+const orgI=document.getElementById("org");
+const nameI=document.getElementById("name");
+const amtI=document.getElementById("amt");
+
+function render(){
+ const q=document.getElementById("search").value.toLowerCase();
+ const data=getData();
+ document.getElementById("searchTable").innerHTML="";
+ document.getElementById("todayBlock").style.display="none";
+
+ if(q===""){
+  return; // blank when no search
  }
-}
-autoSuggest(org,'orgSug');autoSuggest(name,'nameSug');autoSuggest(amt,'amtSug');
 
-document.getElementById('nextBtn').onclick=()=>{
-  const orgVal=org.value.trim();
-  const nameVal=name.value.trim();
-  const amtVal=amt.value.trim();
+ const f=data.filter(d=>d.date.includes(q)||d.name.toLowerCase().includes(q)||d.org.toLowerCase().includes(q));
 
-  if(!orgVal || !nameVal || !amtVal) return alert('Fill all');
+ if(!f.length) return;
 
-  const d=getData();
-  d.push({date:dateI.value, org:orgVal, name:nameVal, amt:+amtVal});
-  setData(d);
-
-  org.value = name.value = amt.value = '';
-  renderTable(getData(), document.getElementById('searchResult'), true);
+ let t=0;
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th></tr>";
+ f.forEach(r=>{t+=r.amt; h+=`<tr><td>${r.date}</td><td>${r.org}</td><td>${r.name}</td><td>${r.amt}</td></tr>`;});
+ h+=`<tr><th colspan="3">Total</th><th>${t}</th></tr>`;
+ document.getElementById("searchTable").innerHTML=h;
 }
 
-document.getElementById('reportBtn').onclick=()=>{
- window.location.href='report.html';
-}
-
-document.getElementById('mainSearch').oninput=()=>{
- const q=mainSearch.value.toLowerCase();
- const rows=getData().filter(e=>e.name.toLowerCase().includes(q)||e.org.toLowerCase().includes(q));
- renderTable(rows, document.getElementById('searchResult'), true);
-}
-
-function renderTable(rows,table,summary){
- table.innerHTML='';
- if(!rows.length) return;
- table.innerHTML='<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th></tr>';
- rows.forEach(r=>table.innerHTML+=`<tr><td>${r.date}</td><td>${r.org}</td><td>${r.name}</td><td>${r.amt}</td></tr>`);
- if(summary){
-  const t=rows.reduce((a,b)=>a+b.amt,0);
-  table.innerHTML+=`<tr><th colspan="3">Total</th><th>${t}</th></tr>`;
- }
-}
-
-// Initial render
-renderTable(getData(), document.getElementById('searchResult'), true);
+document.getElementById("search").oninput=render;
 </script>
 </body>
 </html>
