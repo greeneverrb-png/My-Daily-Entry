@@ -47,6 +47,7 @@ To <input type="date" id="to">
 const key="dailyEntries";
 let data=JSON.parse(localStorage.getItem(key)||"[]");
 
+// --- Render functions remain unchanged ---
 function render(){
  renderPrev();
  renderMonth();
@@ -89,7 +90,7 @@ function renderAll(){
    <td>${d.name}</td>
    <td>${d.amt}</td>
    <td>
-    <button class="edit" onclick="edit('${d.id}')">Edit</button>
+    <button class="edit" onclick="edit(Number('${d.id}'))">Edit</button>
     <button class="del" onclick="del('${d.id}')">Del</button>
    </td>
   </tr>`;
@@ -97,18 +98,22 @@ function renderAll(){
  allTable.innerHTML=h;
 }
 
+// --- Fixed Edit button ---
 function edit(id){
- const e=data.find(x=>x.id==id);
+ const e=data.find(x=>x.id===id);
+ if(!e) return alert("Entry not found");
+
  const nd=prompt("Date",e.date);
  const no=prompt("Organisation",e.org);
  const nn=prompt("Name",e.name);
  const na=prompt("Amount",e.amt);
- if(nd&&no&&nn&&na){
+ if(nd && no && nn && na){
   e.date=nd; e.org=no; e.name=nn; e.amt=+na;
   save();
  }
 }
 
+// --- Delete unchanged ---
 function del(id){
  if(confirm("Delete?")){
   data=data.filter(x=>x.id!=id);
@@ -116,11 +121,13 @@ function del(id){
  }
 }
 
+// --- Save unchanged ---
 function save(){
  localStorage.setItem(key,JSON.stringify(data));
  render();
 }
 
+// --- Export, print unchanged ---
 function exportCSV(){
  let csv="Date,Organisation,Name,Amount\n";
  data.forEach(d=>csv+=`${d.date},${d.org},${d.name},${d.amt}\n`);
@@ -145,6 +152,7 @@ function doPrint(){
  render();
 }
 
+// --- Initial render ---
 render();
 </script>
 </body>
