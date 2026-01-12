@@ -1,134 +1,148 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
+<title>Full Report</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Report View</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1976d2">
 <style>
-body{font-family:Arial;margin:10px;background:#f2f4f7}
-.container{max-width:1000px;margin:auto;background:#fff;padding:15px;border-radius:8px}
-h1{text-align:center}
-.table{width:100%;border-collapse:collapse;margin-top:10px}
-.table th,.table td{border:1px solid #ccc;padding:6px}
-.summary{margin-top:10px;font-weight:bold}
-button{padding:8px 12px;border:none;border-radius:6px;cursor:pointer;background:#1976d2;color:#fff;margin:4px}
-.search{margin:10px 0}
-#fullReport{display:none}
-.actions button{background:#555;color:#fff;margin-left:4px;}
+body{font-family:Arial;background:#f2f4f7;margin:10px}
+.container{max-width:1100px;margin:auto;background:#fff;padding:15px;border-radius:8px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #ccc;padding:6px;text-align:left}
+button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
+.edit{background:#1976d2;color:#fff}
+.del{background:#d32f2f;color:#fff}
+.topbar button{background:#444;color:#fff}
 @media print{button,input{display:none}}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>REPORT VIEW</h1>
+<h2>FULL REPORT</h2>
 
-<h3>Today's Entry</h3>
-<table class="table" id="todayTable"></table>
-<div class="summary" id="todaySummary"></div>
+<div class="topbar">
+<button onclick="location.href='index.html'">← Back</button>
+<button onclick="exportCSV()">Export Excel</button>
+<button onclick="showPrintRange()">Print</button>
+</div>
 
-<div class="search">
-<input id="repSearch" placeholder="Search name or organisation">
+<div id="printRange" style="display:none;margin:10px 0">
+From <input type="date" id="from">  
+To <input type="date" id="to">
+<button onclick="doPrint()">Print</button>
 </div>
 
 <h3>Previous Day Summary</h3>
-<table class="table" id="prevTable"></table>
+<table id="prevTable"></table>
 
 <h3>Monthly Summary</h3>
-<table class="table" id="monthTable"></table>
+<table id="monthTable"></table>
 
-<br>
-<button id="exportBtn">Export Excel</button>
-<button onclick="window.print()">Print</button>
-
-<br><br>
-<button id="toggleFullBtn">View Full Report</button>
-
-<div id="fullReport">
 <h3>All Records (Edit / Delete)</h3>
-<table class="table" id="fullTable"></table>
-</div>
+<table id="allTable"></table>
+
 </div>
 
 <script>
-const key='dailyEntries';
-let data=JSON.parse(localStorage.getItem(key)||'[]');
-const today=new Date().toISOString().slice(0,10);
+const key="dailyEntries";
+let data=JSON.parse(localStorage.getItem(key)||"[]");
 
 function render(){
- const todayRows=data.filter(d=>d.date===today);
- drawTable(todayRows,todayTable,true,true);
- const total=todayRows.reduce((a,b)=>a+b.amt,0);
- todaySummary.innerText=`NOS: ${todayRows.length} | TOTAL: ${total}`;
-
- const prevGrouped={};
- data.filter(d=>d.date!==today).forEach(d=>{
-  if(!prevGrouped[d.date]) prevGrouped[d.date]={date:d.date,nos:0,total:0};
-  prevGrouped[d.date].nos++; prevGrouped[d.date].total+=d.amt;
- });
- prevTable.innerHTML='<tr><th>Date</th><th>NOS</th><th>Total</th></tr>';
- Object.values(prevGrouped).sort((a,b)=>b.date.localeCompare(a.date))
-  .forEach(r=>prevTable.innerHTML+=`<tr><td>${r.date}</td><td>${r.nos}</td><td>${r.total}</td></tr>`);
-
- const monthGrp={};
- data.forEach(d=>{
-  const m=d.date.slice(0,7);
-  if(!monthGrp[m]) monthGrp[m]=0;
-  monthGrp[m]+=d.amt;
- });
- monthTable.innerHTML='<tr><th>Month</th><th>Total Amount</th></tr>';
- Object.keys(monthGrp).sort().forEach(m=>monthTable.innerHTML+=`<tr><td>${m}</td><td>${monthGrp[m]}</td></tr>`);
-
- drawTable(data,fullTable,true,true);
+ renderPrev();
+ renderMonth();
+ renderAll();
 }
 
-function drawTable(rows,table,summary,editable){
- table.innerHTML='';
- if(!rows.length) return;
- let head='<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th>';
- if(editable) head+='<th>Action</th>';
- head+='</tr>';
- table.innerHTML=head;
- rows.forEach((r,i)=>{
-  let tr=`<tr><td>${r.date}</td><td>${r.org}</td><td>${r.name}</td><td>${r.amt}</td>`;
-  if(editable) tr+=`<td class='actions'><button onclick='edit(${i})'>Edit</button><button onclick='del(${i})'>Del</button></td>`;
-  tr+='</tr>';
-  table.innerHTML+=tr;
+function renderPrev(){
+ const grp={};
+ data.forEach(d=>{
+  if(!grp[d.date]) grp[d.date]={nos:0,total:0};
+  grp[d.date].nos++; grp[d.date].total+=d.amt;
  });
- if(summary){
-  const t=rows.reduce((a,b)=>a+b.amt,0);
-  table.innerHTML+=`<tr><th colspan='3'>Total</th><th>${t}</th>${editable?'<th></th>':''}</tr>`;
+ let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
+ Object.keys(grp).sort().reverse().forEach(d=>{
+  h+=`<tr><td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total}</td></tr>`;
+ });
+ prevTable.innerHTML=h;
+}
+
+function renderMonth(){
+ const grp={};
+ data.forEach(d=>{
+  const m=d.date.slice(0,7);
+  if(!grp[m]) grp[m]=0;
+  grp[m]+=d.amt;
+ });
+ let h="<tr><th>Month</th><th>Total</th></tr>";
+ Object.keys(grp).sort().forEach(m=>{
+  h+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
+ });
+ monthTable.innerHTML=h;
+}
+
+function renderAll(){
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
+ data.forEach(d=>{
+  h+=`<tr>
+   <td>${d.date}</td>
+   <td>${d.org}</td>
+   <td>${d.name}</td>
+   <td>${d.amt}</td>
+   <td>
+    <button class="edit" onclick="edit('${d.id}')">Edit</button>
+    <button class="del" onclick="del('${d.id}')">Del</button>
+   </td>
+  </tr>`;
+ });
+ allTable.innerHTML=h;
+}
+
+function edit(id){
+ const e=data.find(x=>x.id==id);
+ const nd=prompt("Date",e.date);
+ const no=prompt("Organisation",e.org);
+ const nn=prompt("Name",e.name);
+ const na=prompt("Amount",e.amt);
+ if(nd&&no&&nn&&na){
+  e.date=nd; e.org=no; e.name=nn; e.amt=+na;
+  save();
  }
 }
 
-function edit(i){
- const e=data[i];
- const amt=prompt('Edit Amount',e.amt);
- if(amt!==null){e.amt=+amt;save();}
-}
-function del(i){ if(confirm('Delete?')){data.splice(i,1);save();} }
-function save(){localStorage.setItem(key,JSON.stringify(data));render();}
-
-document.getElementById('repSearch').oninput=()=>{
- const q=document.getElementById('repSearch').value.toLowerCase();
- const f=data.filter(d=>d.name.toLowerCase().includes(q)||d.org.toLowerCase().includes(q));
- drawTable(f,document.getElementById('todayTable'),true,false);
+function del(id){
+ if(confirm("Delete?")){
+  data=data.filter(x=>x.id!=id);
+  save();
+ }
 }
 
-document.getElementById('toggleFullBtn').onclick=()=>{
- const fr=document.getElementById('fullReport');
- fr.style.display=fr.style.display==='none'?'block':'none';
+function save(){
+ localStorage.setItem(key,JSON.stringify(data));
+ render();
 }
 
-document.getElementById('exportBtn').onclick=()=>{
- let csv='Date,Organisation,Name,Amount\n';
+function exportCSV(){
+ let csv="Date,Organisation,Name,Amount\n";
  data.forEach(d=>csv+=`${d.date},${d.org},${d.name},${d.amt}\n`);
- const blob=new Blob([csv]);
- const a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download='report.csv';
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([csv]));
+ a.download="report.csv";
  a.click();
+}
+
+function showPrintRange(){
+ document.getElementById("printRange").style.display="block";
+}
+
+function doPrint(){
+ const f=from.value, t=to.value;
+ if(!f||!t) return alert("Select date range");
+ const old=data;
+ data=data.filter(d=>d.date>=f && d.date<=t);
+ render();
+ window.print();
+ data=old;
+ render();
 }
 
 render();
