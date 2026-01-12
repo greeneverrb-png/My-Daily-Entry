@@ -47,7 +47,7 @@ To <input type="date" id="to">
 const key="dailyEntries";
 let data=JSON.parse(localStorage.getItem(key)||"[]");
 
-// --- Render functions remain unchanged ---
+// --- Render Functions ---
 function render(){
  renderPrev();
  renderMonth();
@@ -84,59 +84,65 @@ function renderMonth(){
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
  data.forEach(d=>{
+  // Pass id directly as number, not string
   h+=`<tr>
    <td>${d.date}</td>
    <td>${d.org}</td>
    <td>${d.name}</td>
    <td>${d.amt}</td>
    <td>
-    <button class="edit" onclick="edit(Number('${d.id}'))">Edit</button>
-    <button class="del" onclick="del('${d.id}')">Del</button>
+    <button class="edit" onclick="edit(${d.id})">Edit</button>
+    <button class="del" onclick="del(${d.id})">Del</button>
    </td>
   </tr>`;
  });
  allTable.innerHTML=h;
 }
 
-// --- Fixed Edit button ---
+// --- Edit Function ---
 function edit(id){
- const e=data.find(x=>x.id===id);
+ const e = data.find(x => x.id === id);
  if(!e) return alert("Entry not found");
 
- const nd=prompt("Date",e.date);
- const no=prompt("Organisation",e.org);
- const nn=prompt("Name",e.name);
- const na=prompt("Amount",e.amt);
+ // Inline prompt for editing
+ const nd = prompt("Date", e.date);
+ const no = prompt("Organisation", e.org);
+ const nn = prompt("Name", e.name);
+ const na = prompt("Amount", e.amt);
  if(nd && no && nn && na){
-  e.date=nd; e.org=no; e.name=nn; e.amt=+na;
-  save();
+     e.date = nd;
+     e.org = no;
+     e.name = nn;
+     e.amt = +na;
+     save();
  }
 }
 
-// --- Delete unchanged ---
+// --- Delete Function ---
 function del(id){
  if(confirm("Delete?")){
-  data=data.filter(x=>x.id!=id);
+  data = data.filter(x => x.id !== id);
   save();
  }
 }
 
-// --- Save unchanged ---
+// --- Save and rerender ---
 function save(){
- localStorage.setItem(key,JSON.stringify(data));
+ localStorage.setItem(key, JSON.stringify(data));
  render();
 }
 
-// --- Export, print unchanged ---
+// --- Export CSV ---
 function exportCSV(){
  let csv="Date,Organisation,Name,Amount\n";
- data.forEach(d=>csv+=`${d.date},${d.org},${d.name},${d.amt}\n`);
- const a=document.createElement("a");
- a.href=URL.createObjectURL(new Blob([csv]));
- a.download="report.csv";
+ data.forEach(d => csv += `${d.date},${d.org},${d.name},${d.amt}\n`);
+ const a = document.createElement("a");
+ a.href = URL.createObjectURL(new Blob([csv]));
+ a.download = "report.csv";
  a.click();
 }
 
+// --- Print Functions ---
 function showPrintRange(){
  document.getElementById("printRange").style.display="block";
 }
@@ -144,11 +150,11 @@ function showPrintRange(){
 function doPrint(){
  const f=from.value, t=to.value;
  if(!f||!t) return alert("Select date range");
- const old=data;
- data=data.filter(d=>d.date>=f && d.date<=t);
+ const old = data;
+ data = data.filter(d => d.date >= f && d.date <= t);
  render();
  window.print();
- data=old;
+ data = old;
  render();
 }
 
