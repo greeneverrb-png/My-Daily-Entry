@@ -14,11 +14,13 @@ button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 .del{background:#d32f2f;color:#fff}
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
 .topbar button{background:#444;color:#fff;font-size:14px;}
-.refreshBtn{margin-left:auto;background:white;color:green;font-size:16px;font-weight:bold;border-radius:50%;padding:8px 12px;}
+.refreshBtn{margin-left:auto;background:white;color:green;font-size:18px;font-weight:bold;border-radius:50%;padding:8px 12px;}
+.clickable{cursor:pointer;color:#1976d2}
 @media print{button,input{display:none}}
 </style>
 </head>
 <body>
+
 <div class="container">
 <h2>FULL REPORT</h2>
 
@@ -41,147 +43,145 @@ To <input type="date" id="to">
 <h3>Monthly Summary</h3>
 <table id="monthTable"></table>
 
-<h3>All Records (Edit / Delete)</h3>
-<table id="allTable"></table>
+<h3 class="clickable" onclick="toggleAll()">
+All Records (Edit / Delete) ⬇
+</h3>
+<table id="allTable" style="display:none"></table>
 
 </div>
 
 <script>
 const key="dailyEntries";
 let data = JSON.parse(localStorage.getItem(key) || "[]");
+let showAll = false;
 
-// --- Render functions ---
-function render() {
+// ---------- Render ----------
+function render(){
  renderPrev();
  renderMonth();
- renderAll();
+ if(showAll) renderAll();
 }
 
-// --- Previous Day Summary ---
-function renderPrev() {
- const grp = {};
+// ---------- Previous Day ----------
+function renderPrev(){
+ const grp={};
  data.forEach(d=>{
-  if(!grp[d.date]) grp[d.date] = {nos:0, total:0};
-  grp[d.date].nos++; grp[d.date].total += d.amt;
+  if(!grp[d.date]) grp[d.date]={nos:0,total:0};
+  grp[d.date].nos++; grp[d.date].total+=d.amt;
  });
- let h = "<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
+ let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
  Object.keys(grp).sort().reverse().forEach(d=>{
   h+=`<tr><td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total}</td></tr>`;
  });
- prevTable.innerHTML = h;
+ prevTable.innerHTML=h;
 }
 
-// --- Monthly Summary ---
-function renderMonth() {
- const grp = {};
+// ---------- Monthly ----------
+function renderMonth(){
+ const grp={};
  data.forEach(d=>{
-  const m = d.date.slice(0,7);
-  if(!grp[m]) grp[m]=0;
-  grp[m] += d.amt;
+  const m=d.date.slice(0,7);
+  grp[m]=(grp[m]||0)+d.amt;
  });
- let h = "<tr><th>Month</th><th>Total</th></tr>";
+ let h="<tr><th>Month</th><th>Total</th></tr>";
  Object.keys(grp).sort().forEach(m=>{
   h+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
  });
- monthTable.innerHTML = h;
+ monthTable.innerHTML=h;
 }
 
-// --- All Records with row-specific Edit ---
-function renderAll() {
+// ---------- Toggle All Records ----------
+function toggleAll(){
+ showAll=!showAll;
+ allTable.style.display = showAll ? "table" : "none";
+ render();
+}
+
+// ---------- All Records (Last entry first) ----------
+function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
- const table = document.createElement('tbody');
- data.forEach(d=>{
+
+ const reversed = data.slice().reverse();
+
+ reversed.forEach(entry=>{
   h+=`<tr>
-   <td>${d.date}</td>
-   <td>${d.org}</td>
-   <td>${d.name}</td>
-   <td>${d.amt}</td>
+   <td>${entry.date}</td>
+   <td>${entry.org}</td>
+   <td>${entry.name}</td>
+   <td>${entry.amt}</td>
    <td>
     <button class="edit">Edit</button>
     <button class="del">Del</button>
    </td>
   </tr>`;
  });
- allTable.innerHTML = h;
 
- // Attach row-specific event listeners
- const rows = allTable.querySelectorAll('tr');
- rows.forEach((row, i)=>{
-   if(i===0) return; // skip header
-   const editBtn = row.querySelector('.edit');
-   const delBtn = row.querySelector('.del');
-   const entry = data[i-1];
-   editBtn.addEventListener('click', ()=>{
-     edit(entry);
-   });
-   delBtn.addEventListener('click', ()=>{
-     del(entry);
-   });
+ allTable.innerHTML=h;
+
+ const rows = allTable.querySelectorAll("tr");
+ rows.forEach((row,i)=>{
+  if(i===0) return;
+  const entry = reversed[i-1];
+  row.querySelector(".edit").onclick=()=>edit(entry);
+  row.querySelector(".del").onclick=()=>del(entry);
  });
 }
 
-// --- Edit row function ---
-function edit(entry){
- if(!entry) return alert("Entry not found");
- const nd = prompt("Date", entry.date);
- const no = prompt("Organisation", entry.org);
- const nn = prompt("Name", entry.name);
- const na = prompt("Amount", entry.amt);
- if(nd && no && nn && na){
-   entry.date = nd;
-   entry.org = no;
-   entry.name = nn;
-   entry.amt = +na;
-   save();
+// ---------- Edit ----------
+function edit(e){
+ const d=prompt("Date",e.date);
+ const o=prompt("Organisation",e.org);
+ const n=prompt("Name",e.name);
+ const a=prompt("Amount",e.amt);
+ if(d&&o&&n&&a){
+  e.date=d; e.org=o; e.name=n; e.amt=+a;
+  save();
  }
 }
 
-// --- Delete row function ---
-function del(entry){
- if(confirm("Delete?")){
-   data = data.filter(x => x.id !== entry.id);
-   save();
+// ---------- Delete ----------
+function del(e){
+ if(confirm("Delete this entry?")){
+  data=data.filter(x=>x.id!==e.id);
+  save();
  }
 }
 
-// --- Save and rerender ---
 function save(){
- localStorage.setItem(key, JSON.stringify(data));
+ localStorage.setItem(key,JSON.stringify(data));
  render();
 }
 
-// --- Refresh table button ---
-document.getElementById('refreshBtn').addEventListener('click', ()=>{
- data = JSON.parse(localStorage.getItem(key) || "[]");
+// ---------- Refresh ----------
+refreshBtn.onclick=()=>{
+ data=JSON.parse(localStorage.getItem(key)||"[]");
  render();
-});
+}
 
-// --- Export CSV ---
+// ---------- Export ----------
 function exportCSV(){
  let csv="Date,Organisation,Name,Amount\n";
- data.forEach(d => csv += `${d.date},${d.org},${d.name},${d.amt}\n`);
- const a = document.createElement("a");
- a.href = URL.createObjectURL(new Blob([csv]));
- a.download = "report.csv";
+ data.forEach(d=>csv+=`${d.date},${d.org},${d.name},${d.amt}\n`);
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([csv]));
+ a.download="report.csv";
  a.click();
 }
 
-// --- Print ---
+// ---------- Print ----------
 function showPrintRange(){
- document.getElementById("printRange").style.display="block";
+ printRange.style.display="block";
 }
 function doPrint(){
- const f=from.value, t=to.value;
- if(!f||!t) return alert("Select date range");
- const old = data;
- data = data.filter(d => d.date >= f && d.date <= t);
+ if(!from.value||!to.value) return alert("Select date range");
+ const old=data;
+ data=data.filter(d=>d.date>=from.value && d.date<=to.value);
  render();
  window.print();
- data = old;
+ data=old;
  render();
 }
 
-// --- Initial render ---
 render();
 </script>
 </body>
