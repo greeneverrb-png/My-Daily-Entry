@@ -27,7 +27,7 @@ button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 <div class="topbar">
 <button onclick="location.href='index.html'">← Back</button>
 <button class="refreshBtn" id="refreshBtn">↻</button>
-<button onclick="exportCSV()">Export Excel</button>
+<button onclick="exportExcelPage()">Export Excel</button>
 <button onclick="showPrintRange()">Print</button>
 </div>
 
@@ -43,17 +43,23 @@ To <input type="date" id="to">
 <h3>Monthly Summary</h3>
 <table id="monthTable"></table>
 
-<h3 class="clickable" onclick="toggleAll()">
-All Records (Edit / Delete) ⬇
-</h3>
+<h3 class="clickable" onclick="toggleAll()">All Records (Edit / Delete) ⬇</h3>
 <table id="allTable" style="display:none"></table>
-
 </div>
 
 <script>
 const key="dailyEntries";
+
+const prevTable=document.getElementById("prevTable");
+const monthTable=document.getElementById("monthTable");
+const allTable=document.getElementById("allTable");
+const refreshBtn=document.getElementById("refreshBtn");
+const printRange=document.getElementById("printRange");
+const from=document.getElementById("from");
+const to=document.getElementById("to");
+
 let data = JSON.parse(localStorage.getItem(key) || "[]");
-let showAll = false;
+let showAll=false;
 
 // ---------- Render ----------
 function render(){
@@ -67,7 +73,8 @@ function renderPrev(){
  const grp={};
  data.forEach(d=>{
   if(!grp[d.date]) grp[d.date]={nos:0,total:0};
-  grp[d.date].nos++; grp[d.date].total+=d.amt;
+  grp[d.date].nos++;
+  grp[d.date].total+=d.amt;
  });
  let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
  Object.keys(grp).sort().reverse().forEach(d=>{
@@ -90,45 +97,35 @@ function renderMonth(){
  monthTable.innerHTML=h;
 }
 
-// ---------- Toggle All Records ----------
+// ---------- Toggle ----------
 function toggleAll(){
  showAll=!showAll;
- allTable.style.display = showAll ? "table" : "none";
- render();
+ allTable.style.display=showAll?"table":"none";
+ if(showAll) renderAll();
 }
 
-// ---------- All Records (Last entry first) ----------
+// ---------- All Records ----------
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
-
- const reversed = data.slice().reverse();
-
- reversed.forEach(entry=>{
+ // Sort descending by date (latest first)
+ data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
   h+=`<tr>
-   <td>${entry.date}</td>
-   <td>${entry.org}</td>
-   <td>${entry.name}</td>
-   <td>${entry.amt}</td>
+   <td>${e.date}</td>
+   <td>${e.org}</td>
+   <td>${e.name}</td>
+   <td>${e.amt}</td>
    <td>
-    <button class="edit">Edit</button>
-    <button class="del">Del</button>
+    <button class="edit" onclick="edit(${e.id})">Edit</button>
+    <button class="del" onclick="del(${e.id})">Del</button>
    </td>
   </tr>`;
  });
-
  allTable.innerHTML=h;
-
- const rows = allTable.querySelectorAll("tr");
- rows.forEach((row,i)=>{
-  if(i===0) return;
-  const entry = reversed[i-1];
-  row.querySelector(".edit").onclick=()=>edit(entry);
-  row.querySelector(".del").onclick=()=>del(entry);
- });
 }
 
 // ---------- Edit ----------
-function edit(e){
+function edit(id){
+ const e=data.find(x=>x.id===id);
  const d=prompt("Date",e.date);
  const o=prompt("Organisation",e.org);
  const n=prompt("Name",e.name);
@@ -140,9 +137,9 @@ function edit(e){
 }
 
 // ---------- Delete ----------
-function del(e){
+function del(id){
  if(confirm("Delete this entry?")){
-  data=data.filter(x=>x.id!==e.id);
+  data=data.filter(x=>x.id!==id);
   save();
  }
 }
@@ -158,14 +155,10 @@ refreshBtn.onclick=()=>{
  render();
 }
 
-// ---------- Export ----------
-function exportCSV(){
- let csv="Date,Organisation,Name,Amount\n";
- data.forEach(d=>csv+=`${d.date},${d.org},${d.name},${d.amt}\n`);
- const a=document.createElement("a");
- a.href=URL.createObjectURL(new Blob([csv]));
- a.download="report.csv";
- a.click();
+// ---------- Export Excel Page ----------
+function exportExcelPage(){
+ localStorage.setItem("excelData", JSON.stringify(data));
+ window.open("reportExcel.html","_blank");
 }
 
 // ---------- Print ----------
@@ -174,7 +167,9 @@ function showPrintRange(){
 }
 function doPrint(){
  if(!from.value||!to.value) return alert("Select date range");
- const old=data;
+ const old=[...data];
+ showAll=false;
+ allTable.style.display="none";
  data=data.filter(d=>d.date>=from.value && d.date<=to.value);
  render();
  window.print();
