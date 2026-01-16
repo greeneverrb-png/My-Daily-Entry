@@ -10,12 +10,11 @@ body{font-family:Arial;background:#f2f4f7;margin:10px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #ccc;padding:6px;text-align:left}
 button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
-.edit{background:#1976d2;color:#fff}
-.del{background:#d32f2f;color:#fff}
-.topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-.topbar button{background:#444;color:#fff;font-size:14px;}
-.refreshBtn{margin-left:auto;background:white;color:green;font-size:18px;font-weight:bold;border-radius:50%;padding:8px 12px;}
-.clickable{cursor:pointer;color:#1976d2}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.topbar button{background:#444;color:#fff}
+.refreshBtn{margin-left:auto;background:white;color:green;font-size:18px;font-weight:bold;border-radius:50%}
+.clickable{cursor:pointer;color:#1976d2;font-weight:bold}
+.detailRow td{background:#fafafa}
 @media print{button,input{display:none}}
 </style>
 </head>
@@ -28,16 +27,9 @@ button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 <button onclick="location.href='index.html'">← Back</button>
 <button class="refreshBtn" id="refreshBtn">↻</button>
 <button onclick="exportExcelPage()">Export Excel</button>
-<button onclick="showPrintRange()">Print</button>
 </div>
 
-<div id="printRange" style="display:none;margin:10px 0">
-From <input type="date" id="from">  
-To <input type="date" id="to">
-<button onclick="doPrint()">Print</button>
-</div>
-
-<h3>Previous Day Summary</h3>
+<h3>Previous 7 Days Summary</h3>
 <table id="prevTable"></table>
 
 <h3>Monthly Summary</h3>
@@ -49,38 +41,74 @@ To <input type="date" id="to">
 
 <script>
 const key="dailyEntries";
+let data = JSON.parse(localStorage.getItem(key)||"[]");
 
 const prevTable=document.getElementById("prevTable");
 const monthTable=document.getElementById("monthTable");
 const allTable=document.getElementById("allTable");
 const refreshBtn=document.getElementById("refreshBtn");
-const printRange=document.getElementById("printRange");
-const from=document.getElementById("from");
-const to=document.getElementById("to");
 
-let data = JSON.parse(localStorage.getItem(key) || "[]");
+let openDate=null;
 let showAll=false;
 
 // ---------- Render ----------
 function render(){
- renderPrev();
+ renderPrev7();
  renderMonth();
  if(showAll) renderAll();
 }
 
-// ---------- Previous Day ----------
-function renderPrev(){
+// ---------- Previous 7 Days ----------
+function renderPrev7(){
  const grp={};
  data.forEach(d=>{
   if(!grp[d.date]) grp[d.date]={nos:0,total:0};
   grp[d.date].nos++;
   grp[d.date].total+=d.amt;
  });
+
+ const dates = Object.keys(grp).sort().reverse().slice(0,7);
+
  let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
- Object.keys(grp).sort().reverse().forEach(d=>{
-  h+=`<tr><td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total}</td></tr>`;
+
+ dates.forEach(d=>{
+  h+=`
+   <tr class="clickable" onclick="toggleDate('${d}')">
+    <td>${d}</td>
+    <td>${grp[d].nos}</td>
+    <td>${grp[d].total}</td>
+   </tr>
+   <tr id="detail-${d}" class="detailRow" style="display:none">
+    <td colspan="3"></td>
+   </tr>
+  `;
  });
+
  prevTable.innerHTML=h;
+}
+
+// ---------- Toggle Date Detail ----------
+function toggleDate(date){
+ const row=document.getElementById("detail-"+date);
+
+ if(openDate && openDate!==date){
+  document.getElementById("detail-"+openDate).style.display="none";
+ }
+
+ if(row.style.display==="none"){
+  const rows=data.filter(d=>d.date===date);
+  let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amount</th></tr>";
+  rows.forEach(r=>{
+   h+=`<tr><td>${r.org}</td><td>${r.name}</td><td>${r.amt}</td></tr>`;
+  });
+  h+="</table>";
+  row.children[0].innerHTML=h;
+  row.style.display="table-row";
+  openDate=date;
+ }else{
+  row.style.display="none";
+  openDate=null;
+ }
 }
 
 // ---------- Monthly ----------
@@ -97,7 +125,7 @@ function renderMonth(){
  monthTable.innerHTML=h;
 }
 
-// ---------- Toggle ----------
+// ---------- Toggle All ----------
 function toggleAll(){
  showAll=!showAll;
  allTable.style.display=showAll?"table":"none";
@@ -106,78 +134,32 @@ function toggleAll(){
 
 // ---------- All Records ----------
 function renderAll(){
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
- // Sort descending by date (latest first)
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th></tr>";
  data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
   h+=`<tr>
    <td>${e.date}</td>
    <td>${e.org}</td>
    <td>${e.name}</td>
    <td>${e.amt}</td>
-   <td>
-    <button class="edit" onclick="edit(${e.id})">Edit</button>
-    <button class="del" onclick="del(${e.id})">Del</button>
-   </td>
   </tr>`;
  });
  allTable.innerHTML=h;
-}
-
-// ---------- Edit ----------
-function edit(id){
- const e=data.find(x=>x.id===id);
- const d=prompt("Date",e.date);
- const o=prompt("Organisation",e.org);
- const n=prompt("Name",e.name);
- const a=prompt("Amount",e.amt);
- if(d&&o&&n&&a){
-  e.date=d; e.org=o; e.name=n; e.amt=+a;
-  save();
- }
-}
-
-// ---------- Delete ----------
-function del(id){
- if(confirm("Delete this entry?")){
-  data=data.filter(x=>x.id!==id);
-  save();
- }
-}
-
-function save(){
- localStorage.setItem(key,JSON.stringify(data));
- render();
 }
 
 // ---------- Refresh ----------
 refreshBtn.onclick=()=>{
  data=JSON.parse(localStorage.getItem(key)||"[]");
  render();
-}
+};
 
-// ---------- Export Excel Page ----------
+// ---------- Export ----------
 function exportExcelPage(){
- localStorage.setItem("excelData", JSON.stringify(data));
+ localStorage.setItem("excelData",JSON.stringify(data));
  window.open("reportExcel.html","_blank");
-}
-
-// ---------- Print ----------
-function showPrintRange(){
- printRange.style.display="block";
-}
-function doPrint(){
- if(!from.value||!to.value) return alert("Select date range");
- const old=[...data];
- showAll=false;
- allTable.style.display="none";
- data=data.filter(d=>d.date>=from.value && d.date<=to.value);
- render();
- window.print();
- data=old;
- render();
 }
 
 render();
 </script>
+
 </body>
 </html>
