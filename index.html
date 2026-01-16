@@ -13,12 +13,13 @@ button{padding:10px;border:none;border-radius:6px;cursor:pointer}
 #nextBtn{background:#1976d2;color:#fff}
 #reportBtn{background:#444;color:#fff}
 .table{width:100%;border-collapse:collapse;margin-top:10px}
-.table th,.table td{border:1px solid #ccc;padding:6px}
+.table th,.table td{border:1px solid #ccc;padding:6px;text-align:left}
 .summary{display:flex;justify-content:space-between;font-weight:bold;margin-top:10px}
 @media print{button,input{display:none}}
 </style>
 </head>
 <body>
+
 <div class="container">
 <h2>Daily Entry</h2>
 
@@ -30,73 +31,97 @@ button{padding:10px;border:none;border-radius:6px;cursor:pointer}
 </div><br>
 
 <button id="nextBtn">NEXT</button>
-<button id="reportBtn">REPORT VIEW</button>
+<button id="reportBtn" onclick="window.print()">PRINT</button>
 
 <br><br>
 
 <input id="search" placeholder="Search by Date, Name or Organisation">
 
-<div id="todayBlock" style="display:none">
-<div class="summary">
-<div id="nos"></div>
-<div id="total"></div>
-</div>
-<table class="table" id="todayTable"></table>
-</div>
-
 <table class="table" id="searchTable"></table>
-
 </div>
 
 <script>
 const key="dailyEntries";
+
 const dateI=document.getElementById("date");
+const orgI=document.getElementById("org");
+const nameI=document.getElementById("name");
+const amtI=document.getElementById("amt");
+const searchI=document.getElementById("search");
+const table=document.getElementById("searchTable");
+
 dateI.value=new Date().toISOString().slice(0,10);
 
-function getData(){ return JSON.parse(localStorage.getItem(key)||"[]"); }
-function saveData(d){ localStorage.setItem(key,JSON.stringify(d)); }
+function getData(){
+ return JSON.parse(localStorage.getItem(key)||"[]");
+}
+function saveData(d){
+ localStorage.setItem(key,JSON.stringify(d));
+}
 
 document.getElementById("nextBtn").onclick=()=>{
  const org=orgI.value.trim();
  const name=nameI.value.trim();
  const amt=amtI.value.trim();
- if(!org||!name||!amt){alert("Fill all");return;}
- const d=getData();
- d.push({id:Date.now(),date:dateI.value,org,name,amt:+amt});
- saveData(d);
- orgI.value=nameI.value=amtI.value="";
- document.getElementById("search").value="";
- render();
-}
 
-document.getElementById("reportBtn").onclick=()=>location.href="report.html";
-
-const orgI=document.getElementById("org");
-const nameI=document.getElementById("name");
-const amtI=document.getElementById("amt");
-
-function render(){
- const q=document.getElementById("search").value.toLowerCase();
- const data=getData();
- document.getElementById("searchTable").innerHTML="";
- document.getElementById("todayBlock").style.display="none";
-
- if(q===""){
-  return; // blank when no search
+ if(!org||!name||!amt){
+  alert("Fill all fields");
+  return;
  }
 
- const f=data.filter(d=>d.date.includes(q)||d.name.toLowerCase().includes(q)||d.org.toLowerCase().includes(q));
+ const d=getData();
+ d.push({
+  id:Date.now(),
+  date:dateI.value,
+  org,
+  name,
+  amt:+amt
+ });
 
- if(!f.length) return;
+ saveData(d);
+ orgI.value=nameI.value=amtI.value="";
+ render();
+};
 
- let t=0;
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th></tr>";
- f.forEach(r=>{t+=r.amt; h+=`<tr><td>${r.date}</td><td>${r.org}</td><td>${r.name}</td><td>${r.amt}</td></tr>`;});
- h+=`<tr><th colspan="3">Total</th><th>${t}</th></tr>`;
- document.getElementById("searchTable").innerHTML=h;
+function render(){
+ const q=searchI.value.toLowerCase();
+ const data=getData();
+
+ if(!q){
+  table.innerHTML="";
+  return;
+ }
+
+ const f=data.filter(r =>
+  r.date.includes(q) ||
+  r.org.toLowerCase().includes(q) ||
+  r.name.toLowerCase().includes(q)
+ );
+
+ if(!f.length){
+  table.innerHTML="<tr><td>No record found</td></tr>";
+  return;
+ }
+
+ let total=0;
+ let h="<tr><th>Date</th><th>Organisation</th><th>Name</th><th>Amount</th></tr>";
+
+ f.forEach(r=>{
+  total+=r.amt;
+  h+=`<tr>
+    <td>${r.date}</td>
+    <td>${r.org}</td>
+    <td>${r.name}</td>
+    <td>${r.amt}</td>
+  </tr>`;
+ });
+
+ h+=`<tr><th colspan="3">Total</th><th>${total}</th></tr>`;
+ table.innerHTML=h;
 }
 
-document.getElementById("search").oninput=render;
+searchI.oninput=render;
 </script>
+
 </body>
 </html>
