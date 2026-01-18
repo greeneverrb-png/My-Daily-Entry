@@ -132,18 +132,74 @@ function toggleAll(){
  if(showAll) renderAll();
 }
 
+// ---------- Editable Check (last 3 days) ----------
+function isEditable(date){
+ const today = new Date();
+ const rowDate = new Date(date);
+ const diff = (today - rowDate)/(1000*60*60*24);
+ return diff <= 3;
+}
+
 // ---------- All Records ----------
 function renderAll(){
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th></tr>";
- data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
-  h+=`<tr>
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
+
+ data.forEach((e,i)=>{
+  const editable = isEditable(e.date);
+
+  h+=`<tr id="row-${i}">
    <td>${e.date}</td>
-   <td>${e.org}</td>
-   <td>${e.name}</td>
-   <td>${e.amt}</td>
+   <td><span id="org-${i}">${e.org}</span></td>
+   <td><span id="name-${i}">${e.name}</span></td>
+   <td><span id="amt-${i}">${e.amt}</span></td>
+   <td>
+    ${editable ? `
+      <button onclick="editRow(${i})">Edit</button>
+      <button onclick="deleteRow(${i})">Delete</button>
+    ` : `<span style="color:#999">Locked</span>`}
+   </td>
   </tr>`;
  });
+
  allTable.innerHTML=h;
+}
+
+// ---------- Edit ----------
+function editRow(i){
+ const org=document.getElementById("org-"+i);
+ const name=document.getElementById("name-"+i);
+ const amt=document.getElementById("amt-"+i);
+
+ org.innerHTML=`<input id="editOrg-${i}" value="${data[i].org}">`;
+ name.innerHTML=`<input id="editName-${i}" value="${data[i].name}">`;
+ amt.innerHTML=`<input id="editAmt-${i}" type="number" value="${data[i].amt}">`;
+
+ document.querySelector(`#row-${i} td:last-child`).innerHTML=`
+  <button onclick="saveRow(${i})">Save</button>
+  <button onclick="cancelRow(${i})">Cancel</button>
+ `;
+}
+
+function saveRow(i){
+ data[i].org=document.getElementById("editOrg-"+i).value;
+ data[i].name=document.getElementById("editName-"+i).value;
+ data[i].amt=parseFloat(document.getElementById("editAmt-"+i).value)||0;
+
+ localStorage.setItem(key,JSON.stringify(data));
+ renderAll();
+}
+
+function cancelRow(i){
+ renderAll();
+}
+
+// ---------- Delete ----------
+function deleteRow(i){
+ if(confirm("Delete this record?")){
+  data.splice(i,1);
+  localStorage.setItem(key,JSON.stringify(data));
+  renderAll();
+ }
 }
 
 // ---------- Refresh ----------
