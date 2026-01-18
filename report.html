@@ -4,32 +4,28 @@
 <meta charset="UTF-8">
 <title>Full Report</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
 body{font-family:Arial;background:#f2f4f7;margin:10px}
 .container{max-width:1100px;margin:auto;background:#fff;padding:15px;border-radius:8px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid #ccc;padding:6px}
+th,td{border:1px solid #ccc;padding:6px;text-align:left}
 button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .topbar button{background:#444;color:#fff}
 .refreshBtn{margin-left:auto;background:white;color:green;font-size:18px;font-weight:bold;border-radius:50%}
-.refreshBtn:hover{background:#e8ffe8}
 .clickable{cursor:pointer;color:#1976d2;font-weight:bold}
-.locked{color:#999;font-size:12px}
+.detailRow td{background:#fafafa}
+@media print{button,input{display:none}}
 </style>
 </head>
-
 <body>
-<div class="container">
 
+<div class="container">
 <h2>FULL REPORT</h2>
-<h3 id="grandTotal"></h3>
 
 <div class="topbar">
 <button onclick="location.href='index.html'">← Back</button>
 <button class="refreshBtn" id="refreshBtn">↻</button>
-<button onclick="recoverData()">Recover Backup</button>
 <button onclick="exportExcelPage()">Export Excel</button>
 </div>
 
@@ -39,13 +35,11 @@ button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 <h3>Monthly Summary</h3>
 <table id="monthTable"></table>
 
-<h3 class="clickable" onclick="toggleAll()">All Records ⬇</h3>
+<h3 class="clickable" onclick="toggleAll()">All Records (Edit / Delete) ⬇</h3>
 <table id="allTable" style="display:none"></table>
-
 </div>
 
 <script>
-
 const key="dailyEntries";
 let data = JSON.parse(localStorage.getItem(key)||"[]");
 
@@ -54,64 +48,76 @@ const monthTable=document.getElementById("monthTable");
 const allTable=document.getElementById("allTable");
 const refreshBtn=document.getElementById("refreshBtn");
 
+let openDate=null;
 let showAll=false;
-let editIndex=null;
 
-// -------- Backup --------
-function backupData(){
- localStorage.setItem("dailyEntriesBackup", JSON.stringify(data));
-}
-
-// -------- Recovery --------
-function recoverData(){
- let backup = localStorage.getItem("dailyEntriesBackup");
- if(backup){
-  localStorage.setItem(key, backup);
-  data = JSON.parse(backup);
-  alert("Backup Restored!");
-  render();
-  if(showAll) renderAll();
- }else{
-  alert("No Backup Found.");
- }
-}
-
-// -------- Render --------
+// ---------- Render ----------
 function render(){
  renderPrev7();
  renderMonth();
  if(showAll) renderAll();
-
- let total = data.reduce((s,d)=>s+(d.amount||0),0);
- document.getElementById("grandTotal").innerText="Grand Total: "+total;
 }
 
-// -------- Previous 7 Days --------
+// ---------- Previous 7 Days ----------
 function renderPrev7(){
  const grp={};
  data.forEach(d=>{
   if(!grp[d.date]) grp[d.date]={nos:0,total:0};
   grp[d.date].nos++;
-  grp[d.date].total += d.amount||0;
+  grp[d.date].total+=d.amt;
  });
 
- let dates = Object.keys(grp).sort().reverse().slice(0,7);
+ const dates = Object.keys(grp).sort().reverse().slice(0,7);
 
  let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
- dates.forEach(date=>{
-  h+=`<tr><td>${date}</td><td>${grp[date].nos}</td><td>${grp[date].total}</td></tr>`;
+
+ dates.forEach(d=>{
+  h+=`
+   <tr class="clickable" onclick="toggleDate('${d}')">
+    <td>${d}</td>
+    <td>${grp[d].nos}</td>
+    <td>${grp[d].total}</td>
+   </tr>
+   <tr id="detail-${d}" class="detailRow" style="display:none">
+    <td colspan="3"></td>
+   </tr>
+  `;
  });
+
  prevTable.innerHTML=h;
 }
 
-// -------- Monthly Summary --------
+// ---------- Toggle Date Detail ----------
+function toggleDate(date){
+ const row=document.getElementById("detail-"+date);
+
+ if(openDate && openDate!==date){
+  document.getElementById("detail-"+openDate).style.display="none";
+ }
+
+ if(row.style.display==="none"){
+  const rows=data.filter(d=>d.date===date);
+  let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amount</th></tr>";
+  rows.forEach(r=>{
+   h+=`<tr><td>${r.org}</td><td>${r.name}</td><td>${r.amt}</td></tr>`;
+  });
+  h+="</table>";
+  row.children[0].innerHTML=h;
+  row.style.display="table-row";
+  openDate=date;
+ }else{
+  row.style.display="none";
+  openDate=null;
+ }
+}
+
+// ---------- Monthly ----------
 function renderMonth(){
  const grp={};
  data.forEach(d=>{
-  let m=d.date.slice(0,7);
-  grp[m]=(grp[m]||0)+(d.amount||0);
+  const m=d.date.slice(0,7);
+  grp[m]=(grp[m]||0)+d.amt;
  });
-
  let h="<tr><th>Month</th><th>Total</th></tr>";
  Object.keys(grp).sort().forEach(m=>{
   h+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
@@ -119,96 +125,41 @@ function renderMonth(){
  monthTable.innerHTML=h;
 }
 
-// -------- Toggle All Records --------
+// ---------- Toggle All ----------
 function toggleAll(){
  showAll=!showAll;
- allTable.style.display = showAll?"table":"none";
+ allTable.style.display=showAll?"table":"none";
  if(showAll) renderAll();
 }
 
-// -------- All Records --------
+// ---------- All Records ----------
 function renderAll(){
- let today=new Date();
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
-
- data.forEach((e,i)=>{
-  let d=new Date(e.date);
-  let diff=Math.floor((today-d)/(1000*60*60*24));
-
-  let action = diff<=3 ?
-   `<button onclick="startEdit(${i})">Edit</button><button onclick="deleteRow(${i})">Delete</button>`
-   : "<span class='locked'>Locked</span>";
-
-  if(editIndex===i){
-   h+=`<tr>
-    <td><input id="edDate" value="${e.date}"></td>
-    <td><input id="edOrg" value="${e.org}"></td>
-    <td><input id="edName" value="${e.name}"></td>
-    <td><input id="edAmt" type="number" value="${e.amount}"></td>
-    <td>
-     <button onclick="saveEdit(${i})">Save</button>
-     <button onclick="cancelEdit()">Cancel</button>
-    </td>
-   </tr>`;
-  }else{
-   h+=`<tr><td>${e.date}</td><td>${e.org}</td><td>${e.name}</td><td>${e.amount}</td><td>${action}</td></tr>`;
-  }
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th></tr>";
+ data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
+  h+=`<tr>
+   <td>${e.date}</td>
+   <td>${e.org}</td>
+   <td>${e.name}</td>
+   <td>${e.amt}</td>
+  </tr>`;
  });
-
  allTable.innerHTML=h;
 }
 
-// -------- Edit --------
-function startEdit(i){
- editIndex=i;
- renderAll();
-}
-
-function cancelEdit(){
- editIndex=null;
- renderAll();
-}
-
-function saveEdit(i){
- backupData();
-
- data[i].date=document.getElementById("edDate").value;
- data[i].org=document.getElementById("edOrg").value;
- data[i].name=document.getElementById("edName").value;
- data[i].amount=parseFloat(document.getElementById("edAmt").value)||0;
-
- localStorage.setItem(key,JSON.stringify(data));
- editIndex=null;
- render();
- renderAll();
-}
-
-// -------- Delete --------
-function deleteRow(i){
- if(confirm("Delete record?")){
-  backupData();
-  data.splice(i,1);
-  localStorage.setItem(key,JSON.stringify(data));
-  render();
-  renderAll();
- }
-}
-
-// -------- Refresh --------
+// ---------- Refresh ----------
 refreshBtn.onclick=()=>{
  data=JSON.parse(localStorage.getItem(key)||"[]");
  render();
- if(showAll) renderAll();
 };
 
-// -------- Export Excel --------
+// ---------- Export ----------
 function exportExcelPage(){
  localStorage.setItem("excelData",JSON.stringify(data));
  window.open("reportExcel.html","_blank");
 }
 
 render();
-
 </script>
+
 </body>
 </html>
