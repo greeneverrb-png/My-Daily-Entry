@@ -9,21 +9,18 @@
 body{font-family:Arial;background:#f2f4f7;margin:10px}
 .container{max-width:1100px;margin:auto;background:#fff;padding:15px;border-radius:8px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid #ccc;padding:6px;text-align:left}
+th,td{border:1px solid #ccc;padding:6px}
 button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .topbar button{background:#444;color:#fff}
 .refreshBtn{margin-left:auto;background:white;color:green;font-size:18px;font-weight:bold;border-radius:50%}
 .refreshBtn:hover{background:#e8ffe8}
 .clickable{cursor:pointer;color:#1976d2;font-weight:bold}
-.detailRow td{background:#fafafa}
 .locked{color:#999;font-size:12px}
-@media print{button,input{display:none}}
 </style>
 </head>
 
 <body>
-
 <div class="container">
 
 <h2>FULL REPORT</h2>
@@ -56,77 +53,48 @@ const monthTable=document.getElementById("monthTable");
 const allTable=document.getElementById("allTable");
 const refreshBtn=document.getElementById("refreshBtn");
 
-let openDate=null;
 let showAll=false;
 let editIndex=null;
 
-// ---------------- Render ----------------
+// --------- Backup Before Change ---------
+function backupData(){
+ localStorage.setItem("dailyEntriesBackup", JSON.stringify(data));
+}
+
+// --------- Render ---------
 function render(){
  renderPrev7();
  renderMonth();
  if(showAll) renderAll();
 
- const total=data.reduce((s,d)=>s+(d.amount||0),0);
+ let total = data.reduce((s,d)=>s+(d.amount||0),0);
  document.getElementById("grandTotal").innerText="Grand Total: "+total;
 }
 
-// ---------------- Previous 7 Days ----------------
+// --------- Previous 7 Days ---------
 function renderPrev7(){
  const grp={};
  data.forEach(d=>{
   if(!grp[d.date]) grp[d.date]={nos:0,total:0};
   grp[d.date].nos++;
-  grp[d.date].total += d.amount || 0;
+  grp[d.date].total+=d.amount||0;
  });
 
- const dates = Object.keys(grp).sort().reverse().slice(0,7);
+ let dates = Object.keys(grp).sort().reverse().slice(0,7);
 
  let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
  dates.forEach(date=>{
-  h+=`
-   <tr class="clickable" onclick="toggleDate('${date}')">
-    <td>${date}</td>
-    <td>${grp[date].nos}</td>
-    <td>${grp[date].total}</td>
-   </tr>
-   <tr id="detail-${date}" class="detailRow" style="display:none">
-    <td colspan="3"></td>
-   </tr>`;
+  h+=`<tr><td>${date}</td><td>${grp[date].nos}</td><td>${grp[date].total}</td></tr>`;
  });
+
  prevTable.innerHTML=h;
 }
 
-// ---------------- Daily Detail ----------------
-function toggleDate(date){
- const row=document.getElementById("detail-"+date);
-
- if(openDate && openDate!==date){
-  document.getElementById("detail-"+openDate).style.display="none";
- }
-
- if(row.style.display==="none"){
-  const rows=data.filter(d=>d.date===date);
-
-  let html="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amount</th></tr>";
-  rows.forEach(r=>{
-   html+=`<tr><td>${r.org}</td><td>${r.name}</td><td>${r.amount}</td></tr>`;
-  });
-  html+="</table>";
-
-  row.children[0].innerHTML=html;
-  row.style.display="table-row";
-  openDate=date;
- }else{
-  row.style.display="none";
-  openDate=null;
- }
-}
-
-// ---------------- Monthly Summary ----------------
+// --------- Monthly ---------
 function renderMonth(){
  const grp={};
  data.forEach(d=>{
-  const m=d.date.slice(0,7);
+  let m=d.date.slice(0,7);
   grp[m]=(grp[m]||0)+(d.amount||0);
  });
 
@@ -138,59 +106,40 @@ function renderMonth(){
  monthTable.innerHTML=h;
 }
 
-// ---------------- Toggle All Records ----------------
+// --------- All Records ---------
 function toggleAll(){
  showAll=!showAll;
  allTable.style.display = showAll?"table":"none";
  if(showAll) renderAll();
 }
 
-// ---------------- All Records with 3-Day Edit/Delete ----------------
 function renderAll(){
 
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
+ let today=new Date();
 
- const today = new Date();
+ data.forEach((e,i)=>{
 
- data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach((e,i)=>{
+  let d=new Date(e.date);
+  let diff=Math.floor((today-d)/(1000*60*60*24));
 
-  const recordDate = new Date(e.date);
-  const diffDays = Math.floor((today - recordDate)/(1000*60*60*24));
-
-  let action="";
-
-  if(diffDays <= 3){
-    if(editIndex===i){
-      action=`
-       <button onclick="saveEdit(${i})">Save</button>
-       <button onclick="cancelEdit()">Cancel</button>
-      `;
-    }else{
-      action=`
-       <button onclick="startEdit(${i})">Edit</button>
-       <button onclick="deleteRow(${i})">Delete</button>
-      `;
-    }
-  }else{
-    action="<span class='locked'>Locked</span>";
-  }
+  let action = diff<=3 ?
+   `<button onclick="startEdit(${i})">Edit</button><button onclick="deleteRow(${i})">Delete</button>`
+   : "<span class='locked'>Locked</span>";
 
   if(editIndex===i){
    h+=`<tr>
-    <td><input value="${e.date}" id="edDate"></td>
-    <td><input value="${e.org}" id="edOrg"></td>
-    <td><input value="${e.name}" id="edName"></td>
-    <td><input type="number" value="${e.amount}" id="edAmt"></td>
-    <td>${action}</td>
+    <td><input id="edDate" value="${e.date}"></td>
+    <td><input id="edOrg" value="${e.org}"></td>
+    <td><input id="edName" value="${e.name}"></td>
+    <td><input id="edAmt" type="number" value="${e.amount}"></td>
+    <td>
+     <button onclick="saveEdit(${i})">Save</button>
+     <button onclick="cancelEdit()">Cancel</button>
+    </td>
    </tr>`;
   }else{
-   h+=`<tr>
-    <td>${e.date}</td>
-    <td>${e.org}</td>
-    <td>${e.name}</td>
-    <td>${e.amount}</td>
-    <td>${action}</td>
-   </tr>`;
+   h+=`<tr><td>${e.date}</td><td>${e.org}</td><td>${e.name}</td><td>${e.amount}</td><td>${action}</td></tr>`;
   }
 
  });
@@ -198,7 +147,7 @@ function renderAll(){
  allTable.innerHTML=h;
 }
 
-// ---------------- Edit Functions ----------------
+// --------- Edit ---------
 function startEdit(i){
  editIndex=i;
  renderAll();
@@ -210,6 +159,8 @@ function cancelEdit(){
 }
 
 function saveEdit(i){
+ backupData();
+
  data[i].date=document.getElementById("edDate").value;
  data[i].org=document.getElementById("edOrg").value;
  data[i].name=document.getElementById("edName").value;
@@ -221,9 +172,10 @@ function saveEdit(i){
  renderAll();
 }
 
-// ---------------- Delete ----------------
+// --------- Delete ---------
 function deleteRow(i){
- if(confirm("Delete this record?")){
+ if(confirm("Delete record?")){
+  backupData();
   data.splice(i,1);
   localStorage.setItem(key,JSON.stringify(data));
   render();
@@ -231,14 +183,14 @@ function deleteRow(i){
  }
 }
 
-// ---------------- Refresh ----------------
+// --------- Refresh ---------
 refreshBtn.onclick=()=>{
  data=JSON.parse(localStorage.getItem(key)||"[]");
  render();
  if(showAll) renderAll();
 };
 
-// ---------------- Export Excel ----------------
+// --------- Export Excel ---------
 function exportExcelPage(){
  localStorage.setItem("excelData",JSON.stringify(data));
  window.open("reportExcel.html","_blank");
@@ -247,6 +199,5 @@ function exportExcelPage(){
 render();
 
 </script>
-
 </body>
 </html>
