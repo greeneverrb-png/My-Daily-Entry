@@ -29,6 +29,7 @@ button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 <div class="topbar">
 <button onclick="location.href='index.html'">← Back</button>
 <button class="refreshBtn" id="refreshBtn">↻</button>
+<button onclick="recoverData()">Recover Backup</button>
 <button onclick="exportExcelPage()">Export Excel</button>
 </div>
 
@@ -56,12 +57,26 @@ const refreshBtn=document.getElementById("refreshBtn");
 let showAll=false;
 let editIndex=null;
 
-// --------- Backup Before Change ---------
+// -------- Backup --------
 function backupData(){
  localStorage.setItem("dailyEntriesBackup", JSON.stringify(data));
 }
 
-// --------- Render ---------
+// -------- Recovery --------
+function recoverData(){
+ let backup = localStorage.getItem("dailyEntriesBackup");
+ if(backup){
+  localStorage.setItem(key, backup);
+  data = JSON.parse(backup);
+  alert("Backup Restored!");
+  render();
+  if(showAll) renderAll();
+ }else{
+  alert("No Backup Found.");
+ }
+}
+
+// -------- Render --------
 function render(){
  renderPrev7();
  renderMonth();
@@ -71,13 +86,13 @@ function render(){
  document.getElementById("grandTotal").innerText="Grand Total: "+total;
 }
 
-// --------- Previous 7 Days ---------
+// -------- Previous 7 Days --------
 function renderPrev7(){
  const grp={};
  data.forEach(d=>{
   if(!grp[d.date]) grp[d.date]={nos:0,total:0};
   grp[d.date].nos++;
-  grp[d.date].total+=d.amount||0;
+  grp[d.date].total += d.amount||0;
  });
 
  let dates = Object.keys(grp).sort().reverse().slice(0,7);
@@ -86,11 +101,10 @@ function renderPrev7(){
  dates.forEach(date=>{
   h+=`<tr><td>${date}</td><td>${grp[date].nos}</td><td>${grp[date].total}</td></tr>`;
  });
-
  prevTable.innerHTML=h;
 }
 
-// --------- Monthly ---------
+// -------- Monthly Summary --------
 function renderMonth(){
  const grp={};
  data.forEach(d=>{
@@ -102,24 +116,22 @@ function renderMonth(){
  Object.keys(grp).sort().forEach(m=>{
   h+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
  });
-
  monthTable.innerHTML=h;
 }
 
-// --------- All Records ---------
+// -------- Toggle All Records --------
 function toggleAll(){
  showAll=!showAll;
  allTable.style.display = showAll?"table":"none";
  if(showAll) renderAll();
 }
 
+// -------- All Records --------
 function renderAll(){
-
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
  let today=new Date();
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
 
  data.forEach((e,i)=>{
-
   let d=new Date(e.date);
   let diff=Math.floor((today-d)/(1000*60*60*24));
 
@@ -141,13 +153,12 @@ function renderAll(){
   }else{
    h+=`<tr><td>${e.date}</td><td>${e.org}</td><td>${e.name}</td><td>${e.amount}</td><td>${action}</td></tr>`;
   }
-
  });
 
  allTable.innerHTML=h;
 }
 
-// --------- Edit ---------
+// -------- Edit --------
 function startEdit(i){
  editIndex=i;
  renderAll();
@@ -172,7 +183,7 @@ function saveEdit(i){
  renderAll();
 }
 
-// --------- Delete ---------
+// -------- Delete --------
 function deleteRow(i){
  if(confirm("Delete record?")){
   backupData();
@@ -183,14 +194,14 @@ function deleteRow(i){
  }
 }
 
-// --------- Refresh ---------
+// -------- Refresh --------
 refreshBtn.onclick=()=>{
  data=JSON.parse(localStorage.getItem(key)||"[]");
  render();
  if(showAll) renderAll();
 };
 
-// --------- Export Excel ---------
+// -------- Export Excel --------
 function exportExcelPage(){
  localStorage.setItem("excelData",JSON.stringify(data));
  window.open("reportExcel.html","_blank");
