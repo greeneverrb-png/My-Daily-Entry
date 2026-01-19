@@ -51,17 +51,12 @@ const refreshBtn=document.getElementById("refreshBtn");
 
 let openDate=null, showAll=false;
 
-function daysDiff(d){
-  return Math.floor((new Date() - new Date(d)) / (1000*60*60*24));
-}
-
 function render(){
   renderPrev7();
   renderMonth();
   if(showAll) renderAll();
 }
 
-// ---------- Previous 7 Days ----------
 function renderPrev7(){
   const grp={};
   data.forEach(d=>{
@@ -85,7 +80,6 @@ function renderPrev7(){
   prevTable.innerHTML=h;
 }
 
-// ---------- Toggle Detail ----------
 function toggleDate(date){
   const row=document.getElementById("detail-"+date);
   if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
@@ -99,13 +93,12 @@ function toggleDate(date){
     row.children[0].innerHTML=h;
     row.style.display="table-row";
     openDate=date;
-  }else{
+  } else {
     row.style.display="none";
     openDate=null;
   }
 }
 
-// ---------- Monthly ----------
 function renderMonth(){
   const grp={};
   data.forEach(d=>{
@@ -120,7 +113,6 @@ function renderMonth(){
   monthTable.innerHTML=h;
 }
 
-// ---------- Toggle All ----------
 function toggleAll(){
   showAll=!showAll;
   allTable.style.display=showAll?"table":"none";
@@ -128,22 +120,21 @@ function toggleAll(){
   if(showAll) renderAll();
 }
 
-// ---------- All Records ----------
 function renderAll(){
   const s=(document.getElementById("searchBox").value||"").toLowerCase();
   let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
   data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach((e,i)=>{
     if(!e.date) return;
     if(s && !(`${e.date} ${e.org} ${e.name} ${e.amt}`.toLowerCase().includes(s))) return;
-    const allow=daysDiff(e.date)<=3;
+    // EDIT/DELETE always active
     h+=`<tr>
           <td>${e.date}</td>
           <td>${e.org}</td>
           <td>${e.name}</td>
           <td>${parseFloat(e.amt||0)}</td>
           <td>
-            ${allow?`<button onclick="editEntry(${i})">Edit</button>
-            <button onclick="deleteEntry(${i})">Delete</button>`:""}
+            <button onclick="editEntry(${i})">Edit</button>
+            <button onclick="deleteEntry(${i})">Delete</button>
           </td>
         </tr>`;
   });
