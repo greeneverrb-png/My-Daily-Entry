@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -50,8 +50,8 @@ const monthTable=document.getElementById("monthTable");
 const allTable=document.getElementById("allTable");
 const refreshBtn=document.getElementById("refreshBtn");
 
-let openDate=null, showAll=false;
-let editingIndex = null; // track which row is editing
+let showAll=false;
+let editingIndex = null;
 
 // ---------- Render ----------
 function render(){
@@ -73,7 +73,7 @@ function renderPrev7(){
   let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
   dates.forEach(d=>{
     h+=`<tr class="clickable" onclick="toggleDate('${d}')">
-          <td>${d}</td>
+          <td>${d.date}</td>
           <td>${grp[d].nos}</td>
           <td>${grp[d].total}</td>
         </tr>
@@ -87,8 +87,8 @@ function renderPrev7(){
 // ---------- Toggle Date Detail ----------
 function toggleDate(date){
   const row=document.getElementById("detail-"+date);
-  if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
   if(row.style.display==="none"){
+    if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
     const rows=data.filter(d=>d.date===date);
     let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amount</th></tr>";
     rows.forEach(r=>{
@@ -136,7 +136,6 @@ function renderAll(){
     if(s && !(`${e.date} ${e.org} ${e.name} ${e.amt}`.toLowerCase().includes(s))) return;
 
     if(editingIndex===i){
-      // Inline edit row
       h+=`<tr>
         <td><input class="inline-edit" type="date" id="edit-date" value="${e.date}"></td>
         <td><input class="inline-edit" type="text" id="edit-org" value="${e.org}"></td>
@@ -184,13 +183,14 @@ function saveEdit(i){
   if(!date || !name || !org || isNaN(amt)) { alert("Invalid input"); return; }
 
   data[i] = {date, org, name, amt};
-  localStorage.setItem(key,JSON.stringify(data));
   editingIndex = null;
-  render();
+  localStorage.setItem(key,JSON.stringify(data));
+  render(); // Full render updates summaries & table
 }
 
 // ---------- Delete ----------
 function deleteEntry(i){
+  cancelEdit(); // cancel any ongoing edit first
   if(!confirm("Delete this record?")) return;
   data.splice(i,1);
   localStorage.setItem(key,JSON.stringify(data));
@@ -199,6 +199,7 @@ function deleteEntry(i){
 
 // ---------- Refresh ----------
 refreshBtn.onclick=()=>{
+  editingIndex=null; // reset inline editing
   data=JSON.parse(localStorage.getItem(key)||"[]");
   render();
 };
