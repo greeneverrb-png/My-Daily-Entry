@@ -9,214 +9,131 @@ body{font-family:Arial;background:#f2f4f7;margin:10px}
 .container{max-width:1100px;margin:auto;background:#fff;padding:15px;border-radius:8px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #ccc;padding:6px;text-align:left}
-button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:2px}
-.topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.topbar button{background:#444;color:#fff}
-.refreshBtn{margin-left:auto;background:white;color:green;font-size:18px;font-weight:bold;border-radius:50%}
-.clickable{cursor:pointer;color:#1976d2;font-weight:bold}
-.detailRow td{background:#fafafa}
-input.inline-edit{width:95%;padding:2px}
-@media print{button,input{display:none}}
+button{padding:5px 8px;border:none;border-radius:5px;cursor:pointer;margin:2px}
+.refreshBtn{float:right;font-size:18px;background:white;color:green;border-radius:50%}
+input{padding:3px;width:95%}
 </style>
 </head>
 <body>
 
 <div class="container">
 <h2>FULL REPORT</h2>
+<button class="refreshBtn" onclick="refresh()">↻</button>
 
-<div class="topbar">
-<button onclick="location.href='index.html'">← Back</button>
-<button class="refreshBtn" id="refreshBtn">↻</button>
-<button onclick="exportExcelPage()">Export Excel</button>
-</div>
+<h3>Previous 7 Days</h3>
+<table id="prev"></table>
 
-<h3>Previous 7 Days Summary</h3>
-<table id="prevTable"></table>
+<h3>Monthly</h3>
+<table id="month"></table>
 
-<h3>Monthly Summary</h3>
-<table id="monthTable"></table>
-
-<h3 class="clickable" onclick="toggleAll()">All Records (Edit / Delete) ⬇</h3>
-<input id="searchBox" placeholder="Search by Date / Org / Name / Amount" style="width:100%;padding:8px;margin-bottom:8px;display:none">
-<table id="allTable" style="display:none"></table>
+<h3 onclick="toggleAll()" style="cursor:pointer;color:#1976d2">All Records ⬇</h3>
+<table id="all" style="display:none"></table>
 </div>
 
 <script>
 const key="dailyEntries";
 let data = JSON.parse(localStorage.getItem(key)||"[]");
 
-// Ensure each entry has a unique ID
-data = data.map(d => d.id ? d : {...d, id: Date.now()+Math.random()});
+// Ensure unique ID
+data = data.map(d=>d.id?d:{...d,id:Date.now()+Math.random()});
 
-const prevTable=document.getElementById("prevTable");
-const monthTable=document.getElementById("monthTable");
-const allTable=document.getElementById("allTable");
-const refreshBtn=document.getElementById("refreshBtn");
+let editingId=null;
 
-let showAll=false;
-let editingId = null;
+function save(){
+ localStorage.setItem(key,JSON.stringify(data));
+}
 
-// ---------- Render ----------
 function render(){
-  renderPrev7();
-  renderMonth();
-  if(showAll) renderAll();
-  localStorage.setItem(key,JSON.stringify(data));
+ renderPrev();
+ renderMonth();
+ renderAll();
+ save();
 }
 
 // ---------- Previous 7 Days ----------
-function renderPrev7(){
-  const grp={};
-  data.forEach(d=>{
-    if(!d.date) return;
-    if(!grp[d.date]) grp[d.date]={nos:0,total:0};
-    grp[d.date].nos++;
-    grp[d.date].total += parseFloat(d.amt||0);
-  });
-  const dates = Object.keys(grp).sort().reverse().slice(0,7);
-  let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
-  dates.forEach(d=>{
-    h+=`<tr class="clickable" onclick="toggleDate('${d}')">
-          <td>${d}</td>
-          <td>${grp[d].nos}</td>
-          <td>${grp[d].total}</td>
-        </tr>
-        <tr id="detail-${d}" class="detailRow" style="display:none">
-          <td colspan="3"></td>
-        </tr>`;
-  });
-  prevTable.innerHTML=h;
-}
+function renderPrev(){
+ let grp={};
+ data.forEach(d=>{
+  grp[d.date]=grp[d.date]||{nos:0,total:0};
+  grp[d.date].nos++;
+  grp[d.date].total+=parseFloat(d.amt||0);
+ });
 
-// ---------- Toggle Date Detail ----------
-function toggleDate(date){
-  const row=document.getElementById("detail-"+date);
-  if(row.style.display==="none"){
-    if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
-    const rows=data.filter(d=>d.date===date);
-    let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amount</th></tr>";
-    rows.forEach(r=>{
-      h+=`<tr><td>${r.org}</td><td>${r.name}</td><td>${parseFloat(r.amt||0)}</td></tr>`;
-    });
-    h+="</table>";
-    row.children[0].innerHTML=h;
-    row.style.display="table-row";
-    openDate=date;
-  } else {
-    row.style.display="none";
-    openDate=null;
-  }
+ let html="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
+ Object.keys(grp).sort().reverse().slice(0,7).forEach(d=>{
+  html+=`<tr><td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total}</td></tr>`;
+ });
+ document.getElementById("prev").innerHTML=html;
 }
 
 // ---------- Monthly ----------
 function renderMonth(){
-  const grp={};
-  data.forEach(d=>{
-    if(!d.date) return;
-    const m=d.date.slice(0,7);
-    grp[m] = (grp[m]||0) + parseFloat(d.amt||0);
-  });
-  let h="<tr><th>Month</th><th>Total</th></tr>";
-  Object.keys(grp).sort().forEach(m=>{
-    h+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
-  });
-  monthTable.innerHTML=h;
-}
-
-// ---------- Toggle All ----------
-function toggleAll(){
-  showAll=!showAll;
-  allTable.style.display=showAll?"table":"none";
-  document.getElementById("searchBox").style.display=showAll?"block":"none";
-  if(showAll) renderAll();
+ let grp={};
+ data.forEach(d=>{
+  let m=d.date.slice(0,7);
+  grp[m]=(grp[m]||0)+parseFloat(d.amt||0);
+ });
+ let html="<tr><th>Month</th><th>Total</th></tr>";
+ Object.keys(grp).sort().forEach(m=>{
+  html+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
+ });
+ document.getElementById("month").innerHTML=html;
 }
 
 // ---------- All Records ----------
 function renderAll(){
-  const s=(document.getElementById("searchBox").value||"").toLowerCase();
-  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
-  data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
-    if(!e.date) return;
-    if(s && !(`${e.date} ${e.org} ${e.name} ${e.amt}`.toLowerCase().includes(s))) return;
-
-    if(editingId===e.id){
-      h+=`<tr>
-        <td><input class="inline-edit" type="date" id="edit-date" value="${e.date}"></td>
-        <td><input class="inline-edit" type="text" id="edit-org" value="${e.org}"></td>
-        <td><input class="inline-edit" type="text" id="edit-name" value="${e.name}"></td>
-        <td><input class="inline-edit" type="number" id="edit-amt" value="${parseFloat(e.amt||0)}"></td>
-        <td>
-          <button onclick="saveEdit('${e.id}')">Save</button>
-          <button onclick="cancelEdit()">Cancel</button>
-        </td>
-      </tr>`;
-    } else {
-      h+=`<tr>
-        <td>${e.date}</td>
-        <td>${e.org}</td>
-        <td>${e.name}</td>
-        <td>${parseFloat(e.amt||0)}</td>
-        <td>
-          <button onclick="startEdit('${e.id}')">Edit</button>
-          <button onclick="deleteEntry('${e.id}')">Delete</button>
-        </td>
-      </tr>`;
-    }
-  });
-  allTable.innerHTML=h;
-}
-
-// ---------- Start Edit ----------
-function startEdit(id){
-  editingId = id;
-  renderAll();
-}
-
-// ---------- Cancel Edit ----------
-function cancelEdit(){
-  editingId = null;
-  renderAll();
-}
-
-// ---------- Save Edit ----------
-function saveEdit(id){
-  const date = document.getElementById("edit-date").value;
-  const org = document.getElementById("edit-org").value;
-  const name = document.getElementById("edit-name").value;
-  const amt = parseFloat(document.getElementById("edit-amt").value||0);
-  if(!date || !name || !org || isNaN(amt)) { alert("Invalid input"); return; }
-
-  const index = data.findIndex(d=>d.id===id);
-  if(index>=0){
-    data[index] = {id, date, org, name, amt};
+ let html="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
+ data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
+  if(editingId===d.id){
+   html+=`<tr>
+     <td><input id="d-date" type="date" value="${d.date}"></td>
+     <td><input id="d-org" value="${d.org}"></td>
+     <td><input id="d-name" value="${d.name}"></td>
+     <td><input id="d-amt" type="number" value="${d.amt}"></td>
+     <td>
+       <button onclick="saveEdit('${d.id}')">Save</button>
+       <button onclick="editingId=null;render()">Cancel</button>
+     </td>
+   </tr>`;
+  }else{
+   html+=`<tr>
+     <td>${d.date}</td><td>${d.org}</td><td>${d.name}</td><td>${d.amt}</td>
+     <td>
+       <button onclick="editingId='${d.id}';render()">Edit</button>
+       <button onclick="del('${d.id}')">Delete</button>
+     </td>
+   </tr>`;
   }
-  editingId = null;
-  render();
+ });
+ document.getElementById("all").innerHTML=html;
 }
 
-// ---------- Delete ----------
-function deleteEntry(id){
-  cancelEdit(); // cancel any ongoing edit
-  if(!confirm("Delete this record?")) return;
-  data = data.filter(d=>d.id!==id);
-  render();
+function saveEdit(id){
+ let i=data.findIndex(d=>d.id===id);
+ data[i].date=document.getElementById("d-date").value;
+ data[i].org=document.getElementById("d-org").value;
+ data[i].name=document.getElementById("d-name").value;
+ data[i].amt=parseFloat(document.getElementById("d-amt").value||0);
+ editingId=null;
+ render();
 }
 
-// ---------- Refresh ----------
-refreshBtn.onclick=()=>{
-  editingId=null;
-  data = JSON.parse(localStorage.getItem(key)||"[]");
-  data = data.map(d => d.id ? d : {...d, id: Date.now()+Math.random()}); // ensure id
-  render();
-};
-
-// ---------- Export ----------
-function exportExcelPage(){
-  localStorage.setItem("excelData",JSON.stringify(data));
-  window.open("reportExcel.html","_blank");
+function del(id){
+ if(!confirm("Delete?")) return;
+ data=data.filter(d=>d.id!==id);
+ render();
 }
 
-document.getElementById("searchBox").addEventListener("input",renderAll);
+function toggleAll(){
+ let t=document.getElementById("all");
+ t.style.display=t.style.display==="none"?"table":"none";
+}
+
+function refresh(){
+ data=JSON.parse(localStorage.getItem(key)||"[]");
+ render();
+}
+
 render();
 </script>
 
