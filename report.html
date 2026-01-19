@@ -1,3 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Full Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{font-family:Arial;background:#f2f4f7;margin:10px}
+.container{max-width:1100px;margin:auto;background:#fff;padding:15px;border-radius:8px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #ccc;padding:6px;text-align:left}
+button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.topbar button{background:#444;color:#fff}
+.refreshBtn{margin-left:auto;background:white;color:green;font-size:18px;font-weight:bold;border-radius:50%}
+.clickable{cursor:pointer;color:#1976d2;font-weight:bold}
+.detailRow td{background:#fafafa}
+@media print{button,input{display:none}}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h2>FULL REPORT</h2>
+
+<div class="topbar">
+<button onclick="location.href='index.html'">← Back</button>
+<button class="refreshBtn" id="refreshBtn">↻</button>
+<button onclick="exportExcelPage()">Export Excel</button>
+</div>
+
+<h3>Previous 7 Days Summary</h3>
+<table id="prevTable"></table>
+
+<h3>Monthly Summary</h3>
+<table id="monthTable"></table>
+
+<h3 class="clickable" onclick="toggleAll()">All Records (Edit / Delete) ⬇</h3>
+
+<input id="searchBox" placeholder="Search by Date / Org / Name / Amount" style="width:100%;padding:8px;margin-bottom:8px;display:none">
+
+<table id="allTable" style="display:none"></table>
+</div>
+
 <script>
 const key="dailyEntries";
 let data = JSON.parse(localStorage.getItem(key)||"[]");
@@ -50,7 +94,7 @@ function renderPrev7(){
  prevTable.innerHTML=h;
 }
 
-// ---------- Toggle Date Detail ----------
+// ---------- Toggle Detail ----------
 function toggleDate(date){
  const row=document.getElementById("detail-"+date);
 
@@ -92,16 +136,23 @@ function renderMonth(){
 function toggleAll(){
  showAll=!showAll;
  allTable.style.display=showAll?"table":"none";
+ document.getElementById("searchBox").style.display=showAll?"block":"none";
  if(showAll) renderAll();
 }
 
 // ---------- All Records ----------
 function renderAll(){
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
- data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach((e,i)=>{
-  const allow = daysDiff(e.date) <= 3;
+ const search=(document.getElementById("searchBox").value||"").toLowerCase();
 
-  h+=`<tr id="row-${i}">
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
+
+ data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach((e,i)=>{
+  const allow=daysDiff(e.date)<=3;
+
+  const rowText=`${e.date} ${e.org} ${e.name} ${e.amt}`.toLowerCase();
+  if(search && !rowText.includes(search)) return;
+
+  h+=`<tr>
    <td>${e.date}</td>
    <td>${e.org}</td>
    <td>${e.name}</td>
@@ -112,6 +163,7 @@ function renderAll(){
    </td>
   </tr>`;
  });
+
  allTable.innerHTML=h;
 }
 
@@ -135,7 +187,7 @@ function deleteEntry(i){
  saveAndRefresh();
 }
 
-// ---------- Save + Refresh ----------
+// ---------- Save ----------
 function saveAndRefresh(){
  localStorage.setItem(key,JSON.stringify(data));
  render();
@@ -153,5 +205,10 @@ function exportExcelPage(){
  window.open("reportExcel.html","_blank");
 }
 
+document.getElementById("searchBox").addEventListener("input",renderAll);
+
 render();
 </script>
+
+</body>
+</html>
