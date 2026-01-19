@@ -9,12 +9,13 @@ body{font-family:Arial;background:#f2f4f7;margin:10px}
 .container{max-width:1100px;margin:auto;background:#fff;padding:15px;border-radius:8px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #ccc;padding:6px;text-align:left}
-button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
+button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:2px}
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .topbar button{background:#444;color:#fff}
 .refreshBtn{margin-left:auto;background:white;color:green;font-size:18px;font-weight:bold;border-radius:50%}
 .clickable{cursor:pointer;color:#1976d2;font-weight:bold}
 .detailRow td{background:#fafafa}
+input.inline-edit{width:95%;padding:2px}
 @media print{button,input{display:none}}
 </style>
 </head>
@@ -50,13 +51,16 @@ const allTable=document.getElementById("allTable");
 const refreshBtn=document.getElementById("refreshBtn");
 
 let openDate=null, showAll=false;
+let editingIndex = null; // track which row is editing
 
+// ---------- Render ----------
 function render(){
   renderPrev7();
   renderMonth();
   if(showAll) renderAll();
 }
 
+// ---------- Previous 7 Days ----------
 function renderPrev7(){
   const grp={};
   data.forEach(d=>{
@@ -80,6 +84,7 @@ function renderPrev7(){
   prevTable.innerHTML=h;
 }
 
+// ---------- Toggle Date Detail ----------
 function toggleDate(date){
   const row=document.getElementById("detail-"+date);
   if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
@@ -99,6 +104,7 @@ function toggleDate(date){
   }
 }
 
+// ---------- Monthly ----------
 function renderMonth(){
   const grp={};
   data.forEach(d=>{
@@ -113,6 +119,7 @@ function renderMonth(){
   monthTable.innerHTML=h;
 }
 
+// ---------- Toggle All ----------
 function toggleAll(){
   showAll=!showAll;
   allTable.style.display=showAll?"table":"none";
@@ -120,37 +127,65 @@ function toggleAll(){
   if(showAll) renderAll();
 }
 
+// ---------- All Records ----------
 function renderAll(){
   const s=(document.getElementById("searchBox").value||"").toLowerCase();
   let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
   data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach((e,i)=>{
     if(!e.date) return;
     if(s && !(`${e.date} ${e.org} ${e.name} ${e.amt}`.toLowerCase().includes(s))) return;
-    // EDIT/DELETE always active
-    h+=`<tr>
-          <td>${e.date}</td>
-          <td>${e.org}</td>
-          <td>${e.name}</td>
-          <td>${parseFloat(e.amt||0)}</td>
-          <td>
-            <button onclick="editEntry(${i})">Edit</button>
-            <button onclick="deleteEntry(${i})">Delete</button>
-          </td>
-        </tr>`;
+
+    if(editingIndex===i){
+      // Inline edit row
+      h+=`<tr>
+        <td><input class="inline-edit" type="date" id="edit-date" value="${e.date}"></td>
+        <td><input class="inline-edit" type="text" id="edit-org" value="${e.org}"></td>
+        <td><input class="inline-edit" type="text" id="edit-name" value="${e.name}"></td>
+        <td><input class="inline-edit" type="number" id="edit-amt" value="${parseFloat(e.amt||0)}"></td>
+        <td>
+          <button onclick="saveEdit(${i})">Save</button>
+          <button onclick="cancelEdit()">Cancel</button>
+        </td>
+      </tr>`;
+    } else {
+      h+=`<tr>
+        <td>${e.date}</td>
+        <td>${e.org}</td>
+        <td>${e.name}</td>
+        <td>${parseFloat(e.amt||0)}</td>
+        <td>
+          <button onclick="startEdit(${i})">Edit</button>
+          <button onclick="deleteEntry(${i})">Delete</button>
+        </td>
+      </tr>`;
+    }
   });
   allTable.innerHTML=h;
 }
 
-// ---------- Edit ----------
-function editEntry(i){
-  const e=data[i];
-  const org=prompt("Organisation:",e.org);
-  if(org===null) return;
-  const name=prompt("Name:",e.name);
-  if(name===null) return;
-  const amt=parseFloat(prompt("Amount:",parseFloat(e.amt||0))||0);
-  data[i]={...e, org, name, amt};
+// ---------- Start Edit ----------
+function startEdit(i){
+  editingIndex = i;
+  renderAll();
+}
+
+// ---------- Cancel Edit ----------
+function cancelEdit(){
+  editingIndex = null;
+  renderAll();
+}
+
+// ---------- Save Edit ----------
+function saveEdit(i){
+  const date = document.getElementById("edit-date").value;
+  const org = document.getElementById("edit-org").value;
+  const name = document.getElementById("edit-name").value;
+  const amt = parseFloat(document.getElementById("edit-amt").value||0);
+  if(!date || !name || !org || isNaN(amt)) { alert("Invalid input"); return; }
+
+  data[i] = {date, org, name, amt};
   localStorage.setItem(key,JSON.stringify(data));
+  editingIndex = null;
   render();
 }
 
