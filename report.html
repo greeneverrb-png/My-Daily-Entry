@@ -35,7 +35,8 @@ button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;margin:3px}
 <h3>Monthly Summary</h3>
 <table id="monthTable"></table>
 
-<h3 class="clickable" onclick="toggleAll()">All Records ⬇</h3>
+<h3 class="clickable" onclick="toggleAll()">All Records (Edit / Delete) ⬇</h3>
+<input id="searchBox" placeholder="Search by Date / Org / Name / Amount" style="width:100%;padding:8px;margin-bottom:8px;display:none">
 <table id="allTable" style="display:none"></table>
 </div>
 
@@ -48,118 +49,141 @@ const monthTable=document.getElementById("monthTable");
 const allTable=document.getElementById("allTable");
 const refreshBtn=document.getElementById("refreshBtn");
 
-let openDate=null;
-let showAll=false;
+let openDate=null, showAll=false;
 
-// ---------- Render ----------
+function daysDiff(d){
+  return Math.floor((new Date() - new Date(d)) / (1000*60*60*24));
+}
+
 function render(){
- renderPrev7();
- renderMonth();
- if(showAll) renderAll();
+  renderPrev7();
+  renderMonth();
+  if(showAll) renderAll();
 }
 
 // ---------- Previous 7 Days ----------
 function renderPrev7(){
- const grp={};
- data.forEach(d=>{
-  if(!d.date) return;
-  if(!grp[d.date]) grp[d.date]={nos:0,total:0};
-  grp[d.date].nos++;
-  grp[d.date].total+=parseFloat(d.amt||0);
- });
-
- const dates = Object.keys(grp).sort().reverse().slice(0,7);
-
- let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
-
- dates.forEach(d=>{
-  h+=`
-   <tr class="clickable" onclick="toggleDate('${d}')">
-    <td>${d}</td>
-    <td>${grp[d].nos}</td>
-    <td>${grp[d].total}</td>
-   </tr>
-   <tr id="detail-${d}" class="detailRow" style="display:none">
-    <td colspan="3"></td>
-   </tr>`;
- });
-
- prevTable.innerHTML=h;
+  const grp={};
+  data.forEach(d=>{
+    if(!d.date) return;
+    if(!grp[d.date]) grp[d.date]={nos:0,total:0};
+    grp[d.date].nos++;
+    grp[d.date].total += parseFloat(d.amt||0);
+  });
+  const dates = Object.keys(grp).sort().reverse().slice(0,7);
+  let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
+  dates.forEach(d=>{
+    h+=`<tr class="clickable" onclick="toggleDate('${d}')">
+          <td>${d}</td>
+          <td>${grp[d].nos}</td>
+          <td>${grp[d].total}</td>
+        </tr>
+        <tr id="detail-${d}" class="detailRow" style="display:none">
+          <td colspan="3"></td>
+        </tr>`;
+  });
+  prevTable.innerHTML=h;
 }
 
 // ---------- Toggle Detail ----------
 function toggleDate(date){
- const row=document.getElementById("detail-"+date);
-
- if(openDate && openDate!==date){
-  document.getElementById("detail-"+openDate).style.display="none";
- }
-
- if(row.style.display==="none"){
-  const rows=data.filter(d=>d.date===date);
-  let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amount</th></tr>";
-  rows.forEach(r=>{
-   h+=`<tr><td>${r.org}</td><td>${r.name}</td><td>${r.amt}</td></tr>`;
-  });
-  h+="</table>";
-  row.children[0].innerHTML=h;
-  row.style.display="table-row";
-  openDate=date;
- }else{
-  row.style.display="none";
-  openDate=null;
- }
+  const row=document.getElementById("detail-"+date);
+  if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
+  if(row.style.display==="none"){
+    const rows=data.filter(d=>d.date===date);
+    let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amount</th></tr>";
+    rows.forEach(r=>{
+      h+=`<tr><td>${r.org}</td><td>${r.name}</td><td>${parseFloat(r.amt||0)}</td></tr>`;
+    });
+    h+="</table>";
+    row.children[0].innerHTML=h;
+    row.style.display="table-row";
+    openDate=date;
+  }else{
+    row.style.display="none";
+    openDate=null;
+  }
 }
 
 // ---------- Monthly ----------
 function renderMonth(){
- const grp={};
- data.forEach(d=>{
-  if(!d.date) return;
-  const m=d.date.slice(0,7);
-  grp[m]=(grp[m]||0)+parseFloat(d.amt||0);
- });
-
- let h="<tr><th>Month</th><th>Total</th></tr>";
- Object.keys(grp).sort().forEach(m=>{
-  h+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
- });
- monthTable.innerHTML=h;
+  const grp={};
+  data.forEach(d=>{
+    if(!d.date) return;
+    const m=d.date.slice(0,7);
+    grp[m] = (grp[m]||0) + parseFloat(d.amt||0);
+  });
+  let h="<tr><th>Month</th><th>Total</th></tr>";
+  Object.keys(grp).sort().forEach(m=>{
+    h+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
+  });
+  monthTable.innerHTML=h;
 }
 
 // ---------- Toggle All ----------
 function toggleAll(){
- showAll=!showAll;
- allTable.style.display=showAll?"table":"none";
- if(showAll) renderAll();
+  showAll=!showAll;
+  allTable.style.display=showAll?"table":"none";
+  document.getElementById("searchBox").style.display=showAll?"block":"none";
+  if(showAll) renderAll();
 }
 
 // ---------- All Records ----------
 function renderAll(){
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th></tr>";
- data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
-  h+=`<tr>
-   <td>${e.date}</td>
-   <td>${e.org}</td>
-   <td>${e.name}</td>
-   <td>${e.amt}</td>
-  </tr>`;
- });
- allTable.innerHTML=h;
+  const s=(document.getElementById("searchBox").value||"").toLowerCase();
+  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
+  data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach((e,i)=>{
+    if(!e.date) return;
+    if(s && !(`${e.date} ${e.org} ${e.name} ${e.amt}`.toLowerCase().includes(s))) return;
+    const allow=daysDiff(e.date)<=3;
+    h+=`<tr>
+          <td>${e.date}</td>
+          <td>${e.org}</td>
+          <td>${e.name}</td>
+          <td>${parseFloat(e.amt||0)}</td>
+          <td>
+            ${allow?`<button onclick="editEntry(${i})">Edit</button>
+            <button onclick="deleteEntry(${i})">Delete</button>`:""}
+          </td>
+        </tr>`;
+  });
+  allTable.innerHTML=h;
+}
+
+// ---------- Edit ----------
+function editEntry(i){
+  const e=data[i];
+  const org=prompt("Organisation:",e.org);
+  if(org===null) return;
+  const name=prompt("Name:",e.name);
+  if(name===null) return;
+  const amt=parseFloat(prompt("Amount:",parseFloat(e.amt||0))||0);
+  data[i]={...e, org, name, amt};
+  localStorage.setItem(key,JSON.stringify(data));
+  render();
+}
+
+// ---------- Delete ----------
+function deleteEntry(i){
+  if(!confirm("Delete this record?")) return;
+  data.splice(i,1);
+  localStorage.setItem(key,JSON.stringify(data));
+  render();
 }
 
 // ---------- Refresh ----------
 refreshBtn.onclick=()=>{
- data=JSON.parse(localStorage.getItem(key)||"[]");
- render();
+  data=JSON.parse(localStorage.getItem(key)||"[]");
+  render();
 };
 
 // ---------- Export ----------
 function exportExcelPage(){
- localStorage.setItem("excelData",JSON.stringify(data));
- window.open("reportExcel.html","_blank");
+  localStorage.setItem("excelData",JSON.stringify(data));
+  window.open("reportExcel.html","_blank");
 }
 
+document.getElementById("searchBox").addEventListener("input",renderAll);
 render();
 </script>
 
