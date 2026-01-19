@@ -45,19 +45,23 @@ input.inline-edit{width:95%;padding:2px}
 const key="dailyEntries";
 let data = JSON.parse(localStorage.getItem(key)||"[]");
 
+// Ensure each entry has a unique ID
+data = data.map(d => d.id ? d : {...d, id: Date.now()+Math.random()});
+
 const prevTable=document.getElementById("prevTable");
 const monthTable=document.getElementById("monthTable");
 const allTable=document.getElementById("allTable");
 const refreshBtn=document.getElementById("refreshBtn");
 
 let showAll=false;
-let editingIndex = null;
+let editingId = null;
 
 // ---------- Render ----------
 function render(){
   renderPrev7();
   renderMonth();
   if(showAll) renderAll();
+  localStorage.setItem(key,JSON.stringify(data));
 }
 
 // ---------- Previous 7 Days ----------
@@ -73,7 +77,7 @@ function renderPrev7(){
   let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
   dates.forEach(d=>{
     h+=`<tr class="clickable" onclick="toggleDate('${d}')">
-          <td>${d.date}</td>
+          <td>${d}</td>
           <td>${grp[d].nos}</td>
           <td>${grp[d].total}</td>
         </tr>
@@ -131,18 +135,18 @@ function toggleAll(){
 function renderAll(){
   const s=(document.getElementById("searchBox").value||"").toLowerCase();
   let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amount</th><th>Action</th></tr>";
-  data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach((e,i)=>{
+  data.slice().sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
     if(!e.date) return;
     if(s && !(`${e.date} ${e.org} ${e.name} ${e.amt}`.toLowerCase().includes(s))) return;
 
-    if(editingIndex===i){
+    if(editingId===e.id){
       h+=`<tr>
         <td><input class="inline-edit" type="date" id="edit-date" value="${e.date}"></td>
         <td><input class="inline-edit" type="text" id="edit-org" value="${e.org}"></td>
         <td><input class="inline-edit" type="text" id="edit-name" value="${e.name}"></td>
         <td><input class="inline-edit" type="number" id="edit-amt" value="${parseFloat(e.amt||0)}"></td>
         <td>
-          <button onclick="saveEdit(${i})">Save</button>
+          <button onclick="saveEdit('${e.id}')">Save</button>
           <button onclick="cancelEdit()">Cancel</button>
         </td>
       </tr>`;
@@ -153,8 +157,8 @@ function renderAll(){
         <td>${e.name}</td>
         <td>${parseFloat(e.amt||0)}</td>
         <td>
-          <button onclick="startEdit(${i})">Edit</button>
-          <button onclick="deleteEntry(${i})">Delete</button>
+          <button onclick="startEdit('${e.id}')">Edit</button>
+          <button onclick="deleteEntry('${e.id}')">Delete</button>
         </td>
       </tr>`;
     }
@@ -163,44 +167,46 @@ function renderAll(){
 }
 
 // ---------- Start Edit ----------
-function startEdit(i){
-  editingIndex = i;
+function startEdit(id){
+  editingId = id;
   renderAll();
 }
 
 // ---------- Cancel Edit ----------
 function cancelEdit(){
-  editingIndex = null;
+  editingId = null;
   renderAll();
 }
 
 // ---------- Save Edit ----------
-function saveEdit(i){
+function saveEdit(id){
   const date = document.getElementById("edit-date").value;
   const org = document.getElementById("edit-org").value;
   const name = document.getElementById("edit-name").value;
   const amt = parseFloat(document.getElementById("edit-amt").value||0);
   if(!date || !name || !org || isNaN(amt)) { alert("Invalid input"); return; }
 
-  data[i] = {date, org, name, amt};
-  editingIndex = null;
-  localStorage.setItem(key,JSON.stringify(data));
-  render(); // Full render updates summaries & table
+  const index = data.findIndex(d=>d.id===id);
+  if(index>=0){
+    data[index] = {id, date, org, name, amt};
+  }
+  editingId = null;
+  render();
 }
 
 // ---------- Delete ----------
-function deleteEntry(i){
-  cancelEdit(); // cancel any ongoing edit first
+function deleteEntry(id){
+  cancelEdit(); // cancel any ongoing edit
   if(!confirm("Delete this record?")) return;
-  data.splice(i,1);
-  localStorage.setItem(key,JSON.stringify(data));
+  data = data.filter(d=>d.id!==id);
   render();
 }
 
 // ---------- Refresh ----------
 refreshBtn.onclick=()=>{
-  editingIndex=null; // reset inline editing
-  data=JSON.parse(localStorage.getItem(key)||"[]");
+  editingId=null;
+  data = JSON.parse(localStorage.getItem(key)||"[]");
+  data = data.map(d => d.id ? d : {...d, id: Date.now()+Math.random()}); // ensure id
   render();
 };
 
