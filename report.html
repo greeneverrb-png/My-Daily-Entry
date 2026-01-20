@@ -10,17 +10,23 @@ body{font-family:Arial;background:#f2f4f7;margin:10px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #ccc;padding:6px;text-align:left}
 button{padding:5px 8px;border:none;border-radius:5px;cursor:pointer;margin:2px}
-.refreshBtn{float:right;font-size:18px;background:white;color:green;border-radius:50%}
+.refreshBtn{float:right;font-size:18px;background:white;color:green;border-radius:50%;margin-left:5px}
 .clickable{cursor:pointer;color:#1976d2;font-weight:bold}
 .detailRow{background:#fafafa}
 input{padding:4px;width:95%}
+.clearfix::after{content:"";clear:both;display:table;}
 </style>
 </head>
 <body>
 
 <div class="container">
-<h2>FULL REPORT</h2>
-<button class="refreshBtn" onclick="refresh()">↻</button>
+<h2>FULL REPORT
+  <div class="clearfix">
+    <button class="refreshBtn" onclick="refresh()">↻</button>
+    <button class="refreshBtn" onclick="printReport()">🖨️</button>
+    <button class="refreshBtn" onclick="exportExcel()">📥</button>
+  </div>
+</h2>
 
 <h3>Previous 7 Days</h3>
 <table id="prev"></table>
@@ -64,7 +70,7 @@ function renderPrev(){
  let html="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
  Object.keys(grp).sort().reverse().slice(0,7).forEach(d=>{
   html+=`<tr class="clickable" onclick="toggleDate('${d}')">
-     <td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total}</td>
+     <td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total.toFixed(2)}</td>
    </tr>
    <tr id="detail-${d}" class="detailRow" style="display:none">
      <td colspan="3"></td>
@@ -106,7 +112,7 @@ function renderMonth(){
 
  let html="<tr><th>Month</th><th>Total</th></tr>";
  Object.keys(grp).sort().forEach(m=>{
-  html+=`<tr><td>${m}</td><td>${grp[m]}</td></tr>`;
+  html+=`<tr><td>${m}</td><td>${grp[m].toFixed(2)}</td></tr>`;
  });
  document.getElementById("month").innerHTML=html;
 }
@@ -118,10 +124,10 @@ function renderAll(){
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
   if(editingId===d.id){
    html+=`<tr>
-     <td><input id="e-date" type="date" value="${d.date}"></td>
-     <td><input id="e-org" value="${d.org}"></td>
-     <td><input id="e-name" value="${d.name}"></td>
-     <td><input id="e-amt" type="number" value="${d.amt}"></td>
+     <td><input id="e-date-${d.id}" type="date" value="${d.date}"></td>
+     <td><input id="e-org-${d.id}" value="${d.org}"></td>
+     <td><input id="e-name-${d.id}" value="${d.name}"></td>
+     <td><input id="e-amt-${d.id}" type="number" value="${d.amt}"></td>
      <td>
        <button onclick="saveEdit('${d.id}')">Save</button>
        <button onclick="editingId=null;render()">Cancel</button>
@@ -143,10 +149,10 @@ function renderAll(){
 
 function saveEdit(id){
  let i=data.findIndex(d=>d.id===id);
- data[i].date=document.getElementById("e-date").value;
- data[i].org=document.getElementById("e-org").value;
- data[i].name=document.getElementById("e-name").value;
- data[i].amt=parseFloat(document.getElementById("e-amt").value||0);
+ data[i].date=document.getElementById(`e-date-${id}`).value;
+ data[i].org=document.getElementById(`e-org-${id}`).value;
+ data[i].name=document.getElementById(`e-name-${id}`).value;
+ data[i].amt=parseFloat(document.getElementById(`e-amt-${id}`).value||0);
  editingId=null;
  render();
 }
@@ -165,6 +171,36 @@ function toggleAll(){
 function refresh(){
  data=JSON.parse(localStorage.getItem(key)||"[]");
  render();
+}
+
+// ---------- Print ----------
+function printReport(){
+  let content = document.querySelector('.container').innerHTML;
+  let w = window.open('', '', 'width=900,height=700');
+  w.document.write(`<html><head><title>Print Report</title>
+    <style>
+      body{font-family:Arial;margin:10px}
+      table{width:100%;border-collapse:collapse;margin-top:10px}
+      th,td{border:1px solid #ccc;padding:6px;text-align:left}
+    </style>
+    </head><body>${content}</body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
+  w.close();
+}
+
+// ---------- Excel Export ----------
+function exportExcel(){
+  let table = document.getElementById('all'); // export All Records table
+  let html = table.outerHTML;
+  let blob = new Blob([html], {type: "application/vnd.ms-excel"});
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = url;
+  a.download = `Full_Report_${new Date().toISOString().slice(0,10)}.xls`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 render();
