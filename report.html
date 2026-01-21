@@ -8,16 +8,32 @@
 body{font-family:Arial;background:#f2f4f7;margin:10px}
 .container{max-width:1100px;margin:auto;background:#fff;padding:15px;border-radius:8px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid #ccc;padding:6px;text-align:left}
-button,select{padding:5px;border-radius:5px}
+th,td{border:1px solid #ccc;padding:6px;text-align:left;vertical-align:top}
+button{padding:5px 8px;border:none;border-radius:5px;cursor:pointer;margin:2px}
+.refreshBtn{float:right;font-size:18px;background:white;color:green;border-radius:50%;margin-left:5px}
+.clickable{cursor:pointer;color:#1976d2;font-weight:bold}
+.detailRow{background:#fafafa}
+input{padding:4px;width:95%}
+.clearfix::after{content:"";clear:both;display:table;}
 .red{color:red;font-weight:bold}
-.clickable{cursor:pointer;color:#1976d2}
 </style>
 </head>
 <body>
 
 <div class="container">
-<h2>FULL REPORT</h2>
+<h2>FULL REPORT
+  <div class="clearfix">
+    <button class="refreshBtn" onclick="refresh()">↻</button>
+    <button class="refreshBtn" onclick="printReport()">🖨️</button>
+    <button class="refreshBtn" onclick="openExcel()">📊</button>
+  </div>
+</h2>
+
+<h3>Previous 7 Days</h3>
+<table id="prev"></table>
+
+<h3>Monthly</h3>
+<table id="month"></table>
 
 <h3 onclick="toggleAll()" class="clickable">All Records ⬇</h3>
 <table id="all" style="display:none"></table>
@@ -25,74 +41,194 @@ button,select{padding:5px;border-radius:5px}
 
 <script>
 const key="dailyEntries";
-let data=JSON.parse(localStorage.getItem(key)||"[]")
-.map(d=>({...d,status:d.status||"",reason:d.reason||"",id:d.id||Date.now()+Math.random()}));
+let data=JSON.parse(localStorage.getItem(key)||"[]").map(d=>({
+  ...d,
+  id:d.id||Date.now()+Math.random(),
+  status:d.status||"",
+  reason:d.reason||""
+}));
+
+let openDate=null;
+let editingId=null;
 
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
 function shortStatus(d){
- return d.status==="Other"
- ? d.reason.split(" ").slice(0,2).join(" ")
- : d.status;
+ if(d.status==="Other" && d.reason){
+  return d.reason.split(" ").slice(0,2).join(" ");
+ }
+ return d.status||"";
 }
 
-// ---------- STATUS CHANGE ----------
-function changeStatus(id,val){
+function setStatus(id,status){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
 
- if(val==="Other"){
+ if(status==="Other"){
   let r=prompt("Enter reason");
-  if(!r){ render(); return; }
+  if(!r) return;
   data[i].status="Other";
   data[i].reason=r.trim();
  }else{
-  data[i].status=val;
+  data[i].status=status;
   data[i].reason="";
  }
- save();
  render();
 }
 
 // ---------- RENDER ----------
 function render(){
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
+ renderPrev();
+ renderMonth();
+ renderAll();
+ save();
+}
 
+// ---------- PREVIOUS 7 DAYS ----------
+function renderPrev(){
+ let g={};
  data.forEach(d=>{
-  h+=`<tr>
-   <td>${d.date}</td>
-   <td>${d.org}</td>
-   <td>${d.name}</td>
-   <td>${d.amt}</td>
-   <td>
-
-    ${d.status==="" ? `
-    <button onclick="alert('Edit')">Edit</button>
-    <button onclick="alert('Delete')">Delete</button>
-    ` : ``}
-
-    <br>
-    <select onchange="changeStatus('${d.id}',this.value)">
-     <option value="">Status</option>
-     <option value="Done">Done</option>
-     <option value="Pending">Pending</option>
-     <option value="Other">Other</option>
-    </select>
-
-    <div class="${d.status==='Other'?'red':''}">
-     ${shortStatus(d)}
-    </div>
-
-   </td>
-  </tr>`;
+  g[d.date]=g[d.date]||{nos:0,total:0};
+  g[d.date].nos++;
+  g[d.date].total+=+d.amt;
  });
 
+ let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
+ Object.keys(g).sort().reverse().slice(0,7).forEach(d=>{
+  h+=`<tr class="clickable" onclick="toggleDate('${d}')">
+   <td>${d}</td><td>${g[d].nos}</td><td>${g[d].total.toFixed(2)}</td>
+  </tr>
+  <tr id="detail-${d}" class="detailRow" style="display:none">
+   <td colspan="3"></td>
+  </tr>`;
+ });
+ prev.innerHTML=h;
+}
+
+function toggleDate(date){
+ let row=document.getElementById("detail-"+date);
+ if(openDate && openDate!==date){
+  document.getElementById("detail-"+openDate).style.display="none";
+ }
+ if(row.style.display==="none"){
+  let rows=data.filter(d=>d.date===date);
+  let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amt</th><th>Status</th></tr>";
+  rows.forEach(r=>{
+   h+=`<tr>
+    <td>${r.org}</td>
+    <td>${r.name}</td>
+    <td>${r.amt}</td>
+    <td class="${r.status==='Other'?'red':''}">
+     ${r.status==="Other"?r.reason:r.status}
+    </td>
+   </tr>`;
+  });
+  h+="</table>";
+  row.children[0].innerHTML=h;
+  row.style.display="table-row";
+  openDate=date;
+ }else{
+  row.style.display="none";
+  openDate=null;
+ }
+}
+
+// ---------- MONTHLY ----------
+function renderMonth(){
+ let g={};
+ data.forEach(d=>{
+  let m=d.date.slice(0,7);
+  g[m]=(g[m]||0)+(+d.amt);
+ });
+ let h="<tr><th>Month</th><th>Total</th></tr>";
+ Object.keys(g).sort().forEach(m=>{
+  h+=`<tr><td>${m}</td><td>${g[m].toFixed(2)}</td></tr>`;
+ });
+ month.innerHTML=h;
+}
+
+// ---------- ALL RECORDS ----------
+function renderAll(){
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
+
+ data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
+  if(editingId===d.id){
+   h+=`<tr>
+    <td><input type="date" id="ed-${d.id}" value="${d.date}"></td>
+    <td><input id="eo-${d.id}" value="${d.org}"></td>
+    <td><input id="en-${d.id}" value="${d.name}"></td>
+    <td><input type="number" id="ea-${d.id}" value="${d.amt}"></td>
+    <td>
+     <button onclick="saveEdit('${d.id}')">Save</button>
+     <button onclick="editingId=null;render()">Cancel</button>
+    </td>
+   </tr>`;
+  }else{
+   h+=`<tr>
+    <td>${d.date}</td>
+    <td>${d.org}</td>
+    <td>${d.name}</td>
+    <td>${d.amt}</td>
+    <td style="position:relative">
+     ${d.status==="" ? `
+     <button onclick="editingId='${d.id}';render()">Edit</button>
+     <button onclick="del('${d.id}')">Delete</button>` : ``}
+     
+     <select onchange="setStatus('${d.id}',this.value)">
+      <option value="">Status</option>
+      <option value="Done">Done</option>
+      <option value="Pending">Pending</option>
+      <option value="Other">Other</option>
+     </select>
+     
+     <div class="${d.status==='Other'?'red':''}" style="font-size:12px">
+      ${shortStatus(d)}
+     </div>
+    </td>
+   </tr>`;
+  }
+ });
  all.innerHTML=h;
- save();
+}
+
+// ---------- EDIT / DELETE ----------
+function saveEdit(id){
+ let i=data.findIndex(d=>d.id===id);
+ data[i].date=document.getElementById("ed-"+id).value;
+ data[i].org=document.getElementById("eo-"+id).value;
+ data[i].name=document.getElementById("en-"+id).value;
+ data[i].amt=+document.getElementById("ea-"+id).value;
+ editingId=null;
+ render();
+}
+
+function del(id){
+ if(!confirm("Delete this record?")) return;
+ data=data.filter(d=>d.id!==id);
+ render();
 }
 
 function toggleAll(){
  all.style.display=all.style.display==="none"?"table":"none";
+}
+
+function refresh(){
+ data=JSON.parse(localStorage.getItem(key)||"[]");
+ render();
+}
+
+// ---------- PRINT ----------
+function printReport(){
+ let w=window.open("");
+ w.document.write(document.querySelector(".container").innerHTML);
+ w.print();
+ w.close();
+}
+
+// ---------- EXCEL ----------
+function openExcel(){
+ localStorage.setItem("excelData",JSON.stringify(data));
+ window.open("reportExcel.html","_blank");
 }
 
 render();
