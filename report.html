@@ -8,13 +8,15 @@
 body{font-family:Arial;background:#f2f4f7;margin:10px}
 .container{max-width:1100px;margin:auto;background:#fff;padding:15px;border-radius:8px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid #ccc;padding:6px;text-align:left}
+th,td{border:1px solid #ccc;padding:6px;text-align:left;vertical-align:top}
 button{padding:5px 8px;border:none;border-radius:5px;cursor:pointer;margin:2px}
 .refreshBtn{float:right;font-size:18px;background:white;color:green;border-radius:50%;margin-left:5px}
 .clickable{cursor:pointer;color:#1976d2;font-weight:bold}
 .detailRow{background:#fafafa}
 input{padding:4px;width:95%}
 .clearfix::after{content:"";clear:both;display:table;}
+.statusBox div{padding:4px;cursor:pointer}
+.statusBox div:hover{background:#eee}
 </style>
 </head>
 <body>
@@ -41,100 +43,198 @@ input{padding:4px;width:95%}
 <script>
 const key="dailyEntries";
 let data = JSON.parse(localStorage.getItem(key)||"[]");
-data = data.map(d=>d.id?d:{...d,id:Date.now()+Math.random()});
+data = data.map(d=>({
+  ...d,
+  id:d.id||Date.now()+Math.random(),
+  status:d.status||"",
+  reason:d.reason||""
+}));
+
 let openDate=null;
 let editingId=null;
 
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
+// ---------- Helpers ----------
+function shortStatus(d){
+ if(d.status==="Other" && d.reason){
+  return d.reason.split(" ").slice(0,2).join(" ");
+ }
+ return d.status||"";
+}
+
+function setStatus(id,status){
+ let i=data.findIndex(d=>d.id===id);
+ if(i<0) return;
+
+ if(status==="Other"){
+  let r=prompt("Enter reason");
+  if(!r) return;
+  data[i].status="Other";
+  data[i].reason=r.trim();
+ }else{
+  data[i].status=status;
+  data[i].reason="";
+ }
+ render();
+}
+
+// ---------- Render ----------
 function render(){
- renderPrev(); renderMonth(); renderAll(); save();
+ renderPrev();
+ renderMonth();
+ renderAll();
+ save();
 }
 
-// ---------- Prev 7 Days ----------
+// ---------- Previous 7 Days ----------
 function renderPrev(){
- let g={};
+ let grp={};
  data.forEach(d=>{
-  g[d.date]=g[d.date]||{nos:0,total:0};
-  g[d.date].nos++;
-  g[d.date].total+=+d.amt;
+  grp[d.date]=grp[d.date]||{nos:0,total:0};
+  grp[d.date].nos++;
+  grp[d.date].total+=+d.amt;
  });
- let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
- Object.keys(g).sort().reverse().slice(0,7).forEach(d=>{
-  h+=`<tr class="clickable" onclick="toggleDate('${d}')">
-  <td>${d}</td><td>${g[d].nos}</td><td>${g[d].total.toFixed(2)}</td></tr>
-  <tr id="detail-${d}" class="detailRow" style="display:none"><td colspan="3"></td></tr>`;
+
+ let html="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
+ Object.keys(grp).sort().reverse().slice(0,7).forEach(d=>{
+  html+=`<tr class="clickable" onclick="toggleDate('${d}')">
+    <td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total.toFixed(2)}</td>
+   </tr>
+   <tr id="detail-${d}" class="detailRow" style="display:none">
+    <td colspan="3"></td>
+   </tr>`;
  });
- prev.innerHTML=h;
+ prev.innerHTML=html;
 }
 
-function toggleDate(d){
- let r=document.getElementById("detail-"+d);
- if(openDate&&openDate!==d)document.getElementById("detail-"+openDate).style.display="none";
- if(r.style.display==="none"){
-  let rows=data.filter(x=>x.date===d);
-  let h="<table width='100%'><tr><th>Org</th><th>Name</th><th>Amt</th></tr>";
-  rows.forEach(x=>h+=`<tr><td>${x.org}</td><td>${x.name}</td><td>${x.amt}</td></tr>`);
+function toggleDate(date){
+ let row=document.getElementById("detail-"+date);
+ if(openDate&&openDate!==date){
+  document.getElementById("detail-"+openDate).style.display="none";
+ }
+
+ if(row.style.display==="none"){
+  let rows=data.filter(d=>d.date===date);
+  let h="<table width='100%'><tr><th>Org</th><th>Name</th><th>Amt</th><th>Status</th></tr>";
+  rows.forEach(r=>{
+   h+=`<tr>
+    <td>${r.org}</td>
+    <td>${r.name}</td>
+    <td>${r.amt}</td>
+    <td style="color:${r.status==='Other'?'red':'#333'}">
+     ${r.status==="Other"?r.reason:r.status}
+    </td>
+   </tr>`;
+  });
   h+="</table>";
-  r.children[0].innerHTML=h;
-  r.style.display="table-row"; openDate=d;
- }else{r.style.display="none"; openDate=null;}
+  row.children[0].innerHTML=h;
+  row.style.display="table-row";
+  openDate=date;
+ }else{
+  row.style.display="none";
+  openDate=null;
+ }
 }
 
 // ---------- Monthly ----------
 function renderMonth(){
- let g={};
+ let grp={};
  data.forEach(d=>{
   let m=d.date.slice(0,7);
-  g[m]=(g[m]||0)+(+d.amt);
+  grp[m]=(grp[m]||0)+(+d.amt);
  });
- let h="<tr><th>Month</th><th>Total</th></tr>";
- Object.keys(g).sort().forEach(m=>h+=`<tr><td>${m}</td><td>${g[m].toFixed(2)}</td></tr>`);
- month.innerHTML=h;
+ let html="<tr><th>Month</th><th>Total</th></tr>";
+ Object.keys(grp).sort().forEach(m=>{
+  html+=`<tr><td>${m}</td><td>${grp[m].toFixed(2)}</td></tr>`;
+ });
+ month.innerHTML=html;
 }
 
-// ---------- All ----------
+// ---------- All Records ----------
 function renderAll(){
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
+ let html="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
+
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
   if(editingId===d.id){
-   h+=`<tr>
-   <td><input type="date" id="d${d.id}" value="${d.date}"></td>
-   <td><input id="o${d.id}" value="${d.org}"></td>
-   <td><input id="n${d.id}" value="${d.name}"></td>
-   <td><input type="number" id="a${d.id}" value="${d.amt}"></td>
-   <td><button onclick="saveEdit('${d.id}')">Save</button></td></tr>`;
+   html+=`<tr>
+    <td><input type="date" id="ed-${d.id}" value="${d.date}"></td>
+    <td><input id="eo-${d.id}" value="${d.org}"></td>
+    <td><input id="en-${d.id}" value="${d.name}"></td>
+    <td><input type="number" id="ea-${d.id}" value="${d.amt}"></td>
+    <td>
+     <button onclick="saveEdit('${d.id}')">Save</button>
+     <button onclick="editingId=null;render()">Cancel</button>
+    </td>
+   </tr>`;
   }else{
-   h+=`<tr>
-   <td>${d.date}</td><td>${d.org}</td><td>${d.name}</td><td>${d.amt}</td>
-   <td><button onclick="editingId='${d.id}';render()">Edit</button>
-   <button onclick="del('${d.id}')">Del</button></td></tr>`;
+   html+=`<tr>
+    <td>${d.date}</td>
+    <td>${d.org}</td>
+    <td>${d.name}</td>
+    <td>${d.amt}</td>
+    <td style="position:relative">
+     <button onclick="editingId='${d.id}';render()">Edit</button>
+     <button onclick="del('${d.id}')">Delete</button>
+
+     <div style="margin-top:4px">
+      <span class="clickable"
+       onclick="document.getElementById('st-${d.id}').style.display=
+       document.getElementById('st-${d.id}').style.display==='block'?'none':'block'">
+       Status ▾
+      </span>
+
+      <div id="st-${d.id}" class="statusBox"
+       style="display:none;position:absolute;background:#fff;border:1px solid #ccc;z-index:9">
+       <div onclick="setStatus('${d.id}','Done')">Done</div>
+       <div onclick="setStatus('${d.id}','Pending')">Pending</div>
+       <div onclick="setStatus('${d.id}','Other')">Other</div>
+      </div>
+     </div>
+
+     <div style="font-size:12px;color:${d.status==='Other'?'red':'#333'}">
+      ${shortStatus(d)}
+     </div>
+    </td>
+   </tr>`;
   }
  });
- all.innerHTML=h;
+ all.innerHTML=html;
 }
 
 function saveEdit(id){
  let i=data.findIndex(d=>d.id===id);
- data[i]={...data[i],
-  date:document.getElementById("d"+id).value,
-  org:document.getElementById("o"+id).value,
-  name:document.getElementById("n"+id).value,
-  amt:+document.getElementById("a"+id).value};
- editingId=null; render();
+ data[i].date=document.getElementById("ed-"+id).value;
+ data[i].org=document.getElementById("eo-"+id).value;
+ data[i].name=document.getElementById("en-"+id).value;
+ data[i].amt=+document.getElementById("ea-"+id).value;
+ editingId=null;
+ render();
 }
 
-function del(id){ if(confirm("Delete?")){data=data.filter(d=>d.id!==id);render();} }
-function toggleAll(){all.style.display=all.style.display==="none"?"table":"none";}
-function refresh(){data=JSON.parse(localStorage.getItem(key)||"[]");render();}
+function del(id){
+ if(!confirm("Delete this record?")) return;
+ data=data.filter(d=>d.id!==id);
+ render();
+}
+
+function toggleAll(){
+ all.style.display=all.style.display==="none"?"table":"none";
+}
+
+function refresh(){
+ data=JSON.parse(localStorage.getItem(key)||"[]");
+ render();
+}
 
 // ---------- Print ----------
 function printReport(){
- let w=window.open(""); w.document.write(document.querySelector(".container").innerHTML);
+ let w=window.open("");
+ w.document.write(document.querySelector(".container").innerHTML);
  w.print(); w.close();
 }
 
-// ---------- Excel Open ----------
+// ---------- Excel ----------
 function openExcel(){
  localStorage.setItem("excelData",JSON.stringify(data));
  window.open("reportExcel.html","_blank");
@@ -142,5 +242,6 @@ function openExcel(){
 
 render();
 </script>
+
 </body>
 </html>
