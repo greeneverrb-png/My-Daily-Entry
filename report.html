@@ -53,7 +53,7 @@ let openDate=null;
 // Save to localStorage
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
-// Short display for status
+// Short display for status in All table
 function shortStatus(d){
  if(d.status==="Other" && d.reason) return d.reason.split(" ").slice(0,2).join(" ");
  return d.status||"";
