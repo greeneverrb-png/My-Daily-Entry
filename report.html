@@ -16,7 +16,7 @@ button{padding:5px 8px;border:none;border-radius:5px;cursor:pointer;margin:2px}
 input{padding:4px;width:95%}
 .clearfix::after{content:"";clear:both;display:table;}
 .red{color:red;font-weight:bold}
-.topSave{background:#1976d2;color:white;margin-bottom:10px}
+.topSave{background:#1976d2;color:white;margin-bottom:10px;padding:6px 12px;border-radius:5px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -56,14 +56,12 @@ let openDate=null;
 
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
-// ---------- Helpers ----------
 function shortStatus(d){
- if(d.status==="Other" && d.reason){
-  return d.reason.split(" ").slice(0,2).join(" ");
- }
+ if(d.status==="Other" && d.reason) return d.reason.split(" ").slice(0,2).join(" ");
  return d.status||"";
 }
 
+// Status change
 function changeStatus(id,val){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
@@ -79,7 +77,7 @@ function changeStatus(id,val){
  render();
 }
 
-// ---------- Save All ----------
+// Save all changes
 function saveAll(){
  data.forEach(d=>{
   let row=document.getElementById("row-"+d.id);
@@ -95,14 +93,13 @@ alert("All changes saved successfully!");
  render();
 }
 
-// ---------- Render ----------
+// Render functions
 function render(){
  renderPrev();
  renderMonth();
  renderAll();
 }
 
-// ---------- Previous 7 Days ----------
 function renderPrev(){
  let g={};
  data.forEach(d=>{
@@ -150,7 +147,6 @@ function toggleDate(date){
  }
 }
 
-// ---------- Monthly ----------
 function renderMonth(){
  let g={};
  data.forEach(d=>{
@@ -164,10 +160,8 @@ function renderMonth(){
  month.innerHTML=h;
 }
 
-// ---------- All Records ----------
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
-
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
   h+=`<tr id="row-${d.id}">
    <td><input type="date" id="ed-${d.id}" value="${d.date}"></td>
@@ -176,8 +170,7 @@ function renderAll(){
    <td><input type="number" id="ea-${d.id}" value="${d.amt}"></td>
    <td style="position:relative">
 
-    ${d.status==="" ? `
-    <button onclick="del('${d.id}')">Delete</button>` : ``}
+    ${d.status==="" ? `<button onclick="del('${d.id}')">Delete</button>` : ``}
 
     <select onchange="changeStatus('${d.id}',this.value)">
      <option value="">Status</option>
@@ -189,6 +182,7 @@ function renderAll(){
     <div class="${d.status==='Other'?'red':''}" style="font-size:12px">
      ${shortStatus(d)}
     </div>
+
    </td>
   </tr>`;
  });
@@ -202,20 +196,9 @@ function del(id){
 }
 
 function toggleAll(){all.style.display=all.style.display==="none"?"table":"none";}
-
 function refresh(){data=JSON.parse(localStorage.getItem(key)||"[]"); render();}
-
-function printReport(){
- let w=window.open("");
- w.document.write(document.querySelector(".container").innerHTML);
- w.print();
- w.close();
-}
-
-function openExcel(){
- localStorage.setItem("excelData",JSON.stringify(data));
- window.open("reportExcel.html","_blank");
-}
+function printReport(){let w=window.open(""); w.document.write(document.querySelector(".container").innerHTML); w.print(); w.close();}
+function openExcel(){localStorage.setItem("excelData",JSON.stringify(data)); window.open("reportExcel.html","_blank");}
 
 render();
 </script>
