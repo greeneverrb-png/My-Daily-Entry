@@ -10,9 +10,11 @@ body{font-family:Arial;background:#f2f4f7;margin:10px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #ccc;padding:6px}
 th{background:#f0f0f0}
-button,select,input{padding:6px 10px;border-radius:6px}
-.topbar{display:flex;gap:8px;flex-wrap:wrap}
-@media print{button,select,input{display:none}}
+button,select,input{padding:6px 10px;border-radius:6px;border:1px solid #ccc}
+button{background:#1976d2;color:#fff;cursor:pointer;border:none}
+.topbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+#printRange{display:none;margin-bottom:10px}
+@media print{button,select,input,#printRange{display:none}}
 </style>
 </head>
 <body>
@@ -21,52 +23,113 @@ button,select,input{padding:6px 10px;border-radius:6px}
 <h2>Excel View Report</h2>
 
 <div class="topbar">
-<button onclick="window.print()">Print</button>
+<button onclick="showPrintRange()">Print</button>
 <button onclick="today()">Today</button>
 <button onclick="month()">This Month</button>
 
-<select id="org"></select>
-<button onclick="history.back()">Back</button>
+<select id="org">
+<option value="">All Organisation</option>
+</select>
+
+<button onclick="refreshData()">🔄 Refresh</button>
+</div>
+
+<div id="printRange">
+ From <input type="date" id="from">
+ To <input type="date" id="to">
+ <button onclick="printRangeData()">Print</button>
 </div>
 
 <table id="tbl"></table>
 </div>
 
 <script>
-const full=JSON.parse(localStorage.getItem("excelData")||"[]");
-let data=[...full];
+let fullData=[];
+let data=[];
+
 const tbl=document.getElementById("tbl");
 const org=document.getElementById("org");
+const from=document.getElementById("from");
+const to=document.getElementById("to");
+const printRange=document.getElementById("printRange");
 
-org.innerHTML="<option value=''>All Org</option>";
-[...new Set(full.map(d=>d.org))].forEach(o=>{
- let op=document.createElement("option");
- op.value=o; op.text=o; org.appendChild(op);
-});
+// ---------- Load / Refresh ----------
+function refreshData(){
+ fullData = JSON.parse(localStorage.getItem("excelData") || "[]");
+ data=[...fullData];
+ populateOrg();
+ render();
+}
 
-org.onchange=()=>{data=org.value?full.filter(d=>d.org===org.value):[...full];render();}
-
-function render(){
- let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th></tr>";
- let t=0;
- data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
-  t+=+d.amt;
-  h+=`<tr><td>${d.date}</td><td>${d.org}</td><td>${d.name}</td><td>${d.amt}</td></tr>`;
+function populateOrg(){
+ org.innerHTML="<option value=''>All Organisation</option>";
+ [...new Set(fullData.map(d=>d.org))].forEach(o=>{
+  let op=document.createElement("option");
+  op.value=o; op.text=o;
+  org.appendChild(op);
  });
- h+=`<tr><th colspan="3">Total</th><th>${t}</th></tr>`;
+}
+
+org.onchange=()=>{
+ data = org.value ? fullData.filter(d=>d.org===org.value) : [...fullData];
+ render();
+};
+
+// ---------- Render ----------
+function render(){
+ let h="<tr><th>Date</th><th>Organisation</th><th>Name</th><th>Amount</th></tr>";
+ let total=0;
+
+ data
+ .slice()
+ .sort((a,b)=>b.date.localeCompare(a.date))
+ .forEach(d=>{
+  total+=+d.amt;
+  h+=`<tr>
+   <td>${d.date}</td>
+   <td>${d.org}</td>
+   <td>${d.name}</td>
+   <td>${d.amt}</td>
+  </tr>`;
+ });
+
+ h+=`<tr><th colspan="3">Total</th><th>${total}</th></tr>`;
  tbl.innerHTML=h;
 }
 
+// ---------- Date Shortcuts ----------
 function today(){
- let d=new Date().toISOString().slice(0,10);
- data=full.filter(x=>x.date===d); render();
-}
-function month(){
- let m=new Date().toISOString().slice(0,7);
- data=full.filter(x=>x.date.startsWith(m)); render();
+ const t=new Date().toISOString().slice(0,10);
+ data=fullData.filter(d=>d.date===t);
+ render();
 }
 
-render();
+function month(){
+ const m=new Date().toISOString().slice(0,7);
+ data=fullData.filter(d=>d.date.startsWith(m));
+ render();
+}
+
+// ---------- Print with Range ----------
+function showPrintRange(){
+ printRange.style.display = printRange.style.display==="none" ? "block" : "none";
+}
+
+function printRangeData(){
+ if(!from.value || !to.value){
+  alert("Please select From and To date");
+  return;
+ }
+ data = fullData.filter(d=>d.date>=from.value && d.date<=to.value);
+ render();
+ window.print();
+ data=[...fullData];
+ render();
+}
+
+// ---------- Init ----------
+refreshData();
 </script>
+
 </body>
 </html>
