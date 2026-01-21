@@ -50,16 +50,14 @@ let data=JSON.parse(localStorage.getItem(key)||"[]").map(d=>({
 
 let openDate=null;
 
-// Save localStorage
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
-// Short status for display
 function shortStatus(d){
  if(d.status==="Other" && d.reason) return d.reason.split(" ").slice(0,2).join(" ");
  return d.status||"";
 }
 
-// Status change handler
+// Status change
 function changeStatus(id,val){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
@@ -68,14 +66,14 @@ function changeStatus(id,val){
   if(!r) return;
   data[i].status="Other";
   data[i].reason=r.trim();
- }else{
+ } else {
   data[i].status=val;
   data[i].reason="";
  }
  render();
 }
 
-// Render all sections
+// ---------- Render ----------
 function render(){
  renderPrev();
  renderMonth();
@@ -83,7 +81,7 @@ function render(){
  save();
 }
 
-// Previous 7 days table
+// ---------- Previous 7 Days ----------
 function renderPrev(){
  let g={};
  data.forEach(d=>{
@@ -103,7 +101,6 @@ function renderPrev(){
  prev.innerHTML=h;
 }
 
-// Toggle detail view
 function toggleDate(date){
  let row=document.getElementById("detail-"+date);
  if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
@@ -112,24 +109,26 @@ function toggleDate(date){
   let rows=data.filter(d=>d.date===date);
   let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amt</th><th>Status</th></tr>";
   rows.forEach(r=>{
+   let st=r.status==="Other"?r.reason:r.status;
+   let cls=r.status==="Other"?"red":"";
    h+=`<tr>
     <td>${r.org}</td>
     <td>${r.name}</td>
     <td>${r.amt}</td>
-    <td class="${r.status==='Other'?'red':''}">${r.status==="Other"?r.reason:r.status}</td>
+    <td class="${cls}">${st}</td>
    </tr>`;
   });
   h+="</table>";
   row.children[0].innerHTML=h;
   row.style.display="table-row";
   openDate=date;
- }else{
+ } else {
   row.style.display="none";
   openDate=null;
  }
 }
 
-// Monthly summary
+// ---------- Monthly ----------
 function renderMonth(){
  let g={};
  data.forEach(d=>{
@@ -143,7 +142,7 @@ function renderMonth(){
  month.innerHTML=h;
 }
 
-// Render all records
+// ---------- All Records ----------
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
@@ -167,7 +166,7 @@ function renderAll(){
  all.innerHTML=h;
 }
 
-// Row save
+// ---------- Row Save ----------
 function saveRow(id){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
