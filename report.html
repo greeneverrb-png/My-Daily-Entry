@@ -17,6 +17,7 @@ input{padding:4px;width:95%}
 .clearfix::after{content:"";clear:both;display:table;}
 .statusBox div{padding:4px;cursor:pointer}
 .statusBox div:hover{background:#eee}
+.red{color:red}
 </style>
 </head>
 <body>
@@ -44,10 +45,10 @@ input{padding:4px;width:95%}
 const key="dailyEntries";
 let data = JSON.parse(localStorage.getItem(key)||"[]");
 data = data.map(d=>({
-  ...d,
-  id:d.id||Date.now()+Math.random(),
-  status:d.status||"",
-  reason:d.reason||""
+ ...d,
+ id:d.id||Date.now()+Math.random(),
+ status:d.status||"",
+ reason:d.reason||""
 }));
 
 let openDate=null;
@@ -55,15 +56,16 @@ let editingId=null;
 
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
-// ---------- Helpers ----------
+// ---------- STATUS HELPERS ----------
 function shortStatus(d){
  if(d.status==="Other" && d.reason){
   return d.reason.split(" ").slice(0,2).join(" ");
  }
- return d.status||"";
+ return d.status;
 }
 
-function setStatus(id,status){
+function setStatus(e,id,status){
+ e.stopPropagation();
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
 
@@ -76,10 +78,12 @@ function setStatus(id,status){
   data[i].status=status;
   data[i].reason="";
  }
+
+ document.getElementById("st-"+id).style.display="none";
  render();
 }
 
-// ---------- Render ----------
+// ---------- RENDER ----------
 function render(){
  renderPrev();
  renderMonth();
@@ -87,33 +91,32 @@ function render(){
  save();
 }
 
-// ---------- Previous 7 Days ----------
+// ---------- PREVIOUS 7 DAYS ----------
 function renderPrev(){
- let grp={};
+ let g={};
  data.forEach(d=>{
-  grp[d.date]=grp[d.date]||{nos:0,total:0};
-  grp[d.date].nos++;
-  grp[d.date].total+=+d.amt;
+  g[d.date]=g[d.date]||{nos:0,total:0};
+  g[d.date].nos++;
+  g[d.date].total+=+d.amt;
  });
 
- let html="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
- Object.keys(grp).sort().reverse().slice(0,7).forEach(d=>{
-  html+=`<tr class="clickable" onclick="toggleDate('${d}')">
-    <td>${d}</td><td>${grp[d].nos}</td><td>${grp[d].total.toFixed(2)}</td>
-   </tr>
-   <tr id="detail-${d}" class="detailRow" style="display:none">
-    <td colspan="3"></td>
-   </tr>`;
+ let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
+ Object.keys(g).sort().reverse().slice(0,7).forEach(d=>{
+  h+=`<tr class="clickable" onclick="toggleDate('${d}')">
+   <td>${d}</td><td>${g[d].nos}</td><td>${g[d].total.toFixed(2)}</td>
+  </tr>
+  <tr id="detail-${d}" class="detailRow" style="display:none">
+   <td colspan="3"></td>
+  </tr>`;
  });
- prev.innerHTML=html;
+ prev.innerHTML=h;
 }
 
 function toggleDate(date){
  let row=document.getElementById("detail-"+date);
- if(openDate&&openDate!==date){
+ if(openDate && openDate!==date){
   document.getElementById("detail-"+openDate).style.display="none";
  }
-
  if(row.style.display==="none"){
   let rows=data.filter(d=>d.date===date);
   let h="<table width='100%'><tr><th>Org</th><th>Name</th><th>Amt</th><th>Status</th></tr>";
@@ -122,7 +125,7 @@ function toggleDate(date){
     <td>${r.org}</td>
     <td>${r.name}</td>
     <td>${r.amt}</td>
-    <td style="color:${r.status==='Other'?'red':'#333'}">
+    <td class="${r.status==='Other'?'red':''}">
      ${r.status==="Other"?r.reason:r.status}
     </td>
    </tr>`;
@@ -137,27 +140,27 @@ function toggleDate(date){
  }
 }
 
-// ---------- Monthly ----------
+// ---------- MONTHLY ----------
 function renderMonth(){
- let grp={};
+ let g={};
  data.forEach(d=>{
   let m=d.date.slice(0,7);
-  grp[m]=(grp[m]||0)+(+d.amt);
+  g[m]=(g[m]||0)+(+d.amt);
  });
- let html="<tr><th>Month</th><th>Total</th></tr>";
- Object.keys(grp).sort().forEach(m=>{
-  html+=`<tr><td>${m}</td><td>${grp[m].toFixed(2)}</td></tr>`;
+ let h="<tr><th>Month</th><th>Total</th></tr>";
+ Object.keys(g).sort().forEach(m=>{
+  h+=`<tr><td>${m}</td><td>${g[m].toFixed(2)}</td></tr>`;
  });
- month.innerHTML=html;
+ month.innerHTML=h;
 }
 
-// ---------- All Records ----------
+// ---------- ALL RECORDS ----------
 function renderAll(){
- let html="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
+ let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
 
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
   if(editingId===d.id){
-   html+=`<tr>
+   h+=`<tr>
     <td><input type="date" id="ed-${d.id}" value="${d.date}"></td>
     <td><input id="eo-${d.id}" value="${d.org}"></td>
     <td><input id="en-${d.id}" value="${d.name}"></td>
@@ -168,40 +171,47 @@ function renderAll(){
     </td>
    </tr>`;
   }else{
-   html+=`<tr>
+   h+=`<tr>
     <td>${d.date}</td>
     <td>${d.org}</td>
     <td>${d.name}</td>
     <td>${d.amt}</td>
     <td style="position:relative">
+
+     ${d.status==="" ? `
      <button onclick="editingId='${d.id}';render()">Edit</button>
      <button onclick="del('${d.id}')">Delete</button>
+     ` : ``}
 
-     <div style="margin-top:4px">
+     <div style="margin-top:4px;position:relative">
       <span class="clickable"
-       onclick="document.getElementById('st-${d.id}').style.display=
-       document.getElementById('st-${d.id}').style.display==='block'?'none':'block'">
+       onclick="event.stopPropagation();
+       let b=document.getElementById('st-${d.id}');
+       b.style.display=b.style.display==='block'?'none':'block';">
        Status ▾
       </span>
 
       <div id="st-${d.id}" class="statusBox"
-       style="display:none;position:absolute;background:#fff;border:1px solid #ccc;z-index:9">
-       <div onclick="setStatus('${d.id}','Done')">Done</div>
-       <div onclick="setStatus('${d.id}','Pending')">Pending</div>
-       <div onclick="setStatus('${d.id}','Other')">Other</div>
+       style="display:none;position:absolute;left:0;top:18px;
+       background:#fff;border:1px solid #ccc;z-index:999">
+       <div onclick="setStatus(event,'${d.id}','Done')">Done</div>
+       <div onclick="setStatus(event,'${d.id}','Pending')">Pending</div>
+       <div onclick="setStatus(event,'${d.id}','Other')">Other</div>
       </div>
      </div>
 
-     <div style="font-size:12px;color:${d.status==='Other'?'red':'#333'}">
+     <div style="font-size:12px"
+      class="${d.status==='Other'?'red':''}">
       ${shortStatus(d)}
      </div>
     </td>
    </tr>`;
   }
  });
- all.innerHTML=html;
+ all.innerHTML=h;
 }
 
+// ---------- EDIT / DELETE ----------
 function saveEdit(id){
  let i=data.findIndex(d=>d.id===id);
  data[i].date=document.getElementById("ed-"+id).value;
@@ -227,14 +237,15 @@ function refresh(){
  render();
 }
 
-// ---------- Print ----------
+// ---------- PRINT ----------
 function printReport(){
  let w=window.open("");
  w.document.write(document.querySelector(".container").innerHTML);
- w.print(); w.close();
+ w.print();
+ w.close();
 }
 
-// ---------- Excel ----------
+// ---------- EXCEL ----------
 function openExcel(){
  localStorage.setItem("excelData",JSON.stringify(data));
  window.open("reportExcel.html","_blank");
