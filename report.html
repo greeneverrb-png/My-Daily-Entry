@@ -50,16 +50,16 @@ let data=JSON.parse(localStorage.getItem(key)||"[]").map(d=>({
 
 let openDate=null;
 
-// Save localStorage
+// Save to localStorage
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
-// Short display for status
+// Short display for status in All table
 function shortStatus(d){
  if(d.status==="Other" && d.reason) return d.reason.split(" ").slice(0,2).join(" ");
  return d.status||"";
 }
 
-// Change status
+// Change status handler
 function changeStatus(id,val){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
@@ -72,6 +72,7 @@ function changeStatus(id,val){
   data[i].status=val;
   data[i].reason="";
  }
+ save();
  render();
 }
 
@@ -194,6 +195,7 @@ function refresh(){data=JSON.parse(localStorage.getItem(key)||"[]"); render();}
 function printReport(){let w=window.open(""); w.document.write(document.querySelector(".container").innerHTML); w.print(); w.close();}
 function openExcel(){localStorage.setItem("excelData",JSON.stringify(data)); window.open("reportExcel.html","_blank");}
 
+// Initial render
 render();
 </script>
 
