@@ -50,18 +50,21 @@ let data=JSON.parse(localStorage.getItem(key)||"[]").map(d=>({
 
 let openDate=null;
 
+// Save localStorage
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
+// Short status for display
 function shortStatus(d){
  if(d.status==="Other" && d.reason) return d.reason.split(" ").slice(0,2).join(" ");
  return d.status||"";
 }
 
+// Status change handler
 function changeStatus(id,val){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
  if(val==="Other"){
-  let r=prompt("Enter reason");
+  let r=prompt("Enter reason for Other status");
   if(!r) return;
   data[i].status="Other";
   data[i].reason=r.trim();
@@ -72,7 +75,7 @@ function changeStatus(id,val){
  render();
 }
 
-// ---------- Render ----------
+// Render all sections
 function render(){
  renderPrev();
  renderMonth();
@@ -80,7 +83,7 @@ function render(){
  save();
 }
 
-// ---------- Previous 7 Days ----------
+// Previous 7 days table
 function renderPrev(){
  let g={};
  data.forEach(d=>{
@@ -100,11 +103,11 @@ function renderPrev(){
  prev.innerHTML=h;
 }
 
+// Toggle detail view
 function toggleDate(date){
  let row=document.getElementById("detail-"+date);
- if(openDate && openDate!==date){
-  document.getElementById("detail-"+openDate).style.display="none";
- }
+ if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
+
  if(row.style.display==="none"){
   let rows=data.filter(d=>d.date===date);
   let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amt</th><th>Status</th></tr>";
@@ -126,7 +129,7 @@ function toggleDate(date){
  }
 }
 
-// ---------- Monthly ----------
+// Monthly summary
 function renderMonth(){
  let g={};
  data.forEach(d=>{
@@ -140,7 +143,7 @@ function renderMonth(){
  month.innerHTML=h;
 }
 
-// ---------- All Records ----------
+// Render all records
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
@@ -149,7 +152,7 @@ function renderAll(){
    <td><input id="eo-${d.id}" value="${d.org}"></td>
    <td><input id="en-${d.id}" value="${d.name}"></td>
    <td><input type="number" id="ea-${d.id}" value="${d.amt}"></td>
-   <td style="position:relative">
+   <td>
     ${d.status==="" ? `<button onclick="saveRow('${d.id}')">Save</button><button onclick="del('${d.id}')">Delete</button>` : ``}
     <select onchange="changeStatus('${d.id}',this.value)">
      <option value="">Status</option>
@@ -164,7 +167,7 @@ function renderAll(){
  all.innerHTML=h;
 }
 
-// ---------- Row Save ----------
+// Row save
 function saveRow(id){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
@@ -176,12 +179,14 @@ function saveRow(id){
  render();
 }
 
+// Delete row
 function del(id){
  if(!confirm("Delete this record?")) return;
  data=data.filter(d=>d.id!==id);
  render();
 }
 
+// Utilities
 function toggleAll(){all.style.display=all.style.display==="none"?"table":"none";}
 function refresh(){data=JSON.parse(localStorage.getItem(key)||"[]"); render();}
 function printReport(){let w=window.open(""); w.document.write(document.querySelector(".container").innerHTML); w.print(); w.close();}
