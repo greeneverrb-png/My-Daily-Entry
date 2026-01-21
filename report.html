@@ -16,7 +16,6 @@ button{padding:5px 8px;border:none;border-radius:5px;cursor:pointer;margin:2px}
 input{padding:4px;width:95%}
 .clearfix::after{content:"";clear:both;display:table;}
 .red{color:red;font-weight:bold}
-.topSave{background:#1976d2;color:white;margin-bottom:10px;padding:6px 12px;border-radius:5px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -29,9 +28,6 @@ input{padding:4px;width:95%}
     <button class="refreshBtn" onclick="openExcel()">📊</button>
   </div>
 </h2>
-
-<!-- TOP SAVE BUTTON -->
-<button class="topSave" onclick="saveAll()">💾 Save All Changes</button>
 
 <h3>Previous 7 Days</h3>
 <table id="prev"></table>
@@ -61,7 +57,6 @@ function shortStatus(d){
  return d.status||"";
 }
 
-// Status change
 function changeStatus(id,val){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
@@ -77,29 +72,15 @@ function changeStatus(id,val){
  render();
 }
 
-// Save all changes
-function saveAll(){
- data.forEach(d=>{
-  let row=document.getElementById("row-"+d.id);
-  if(row){
-    d.date=document.getElementById("ed-"+d.id).value;
-    d.org=document.getElementById("eo-"+d.id).value;
-    d.name=document.getElementById("en-"+d.id).value;
-    d.amt=+document.getElementById("ea-"+d.id).value;
-  }
- });
- save();
-alert("All changes saved successfully!");
- render();
-}
-
-// Render functions
+// ---------- Render ----------
 function render(){
  renderPrev();
  renderMonth();
  renderAll();
+ save();
 }
 
+// ---------- Previous 7 Days ----------
 function renderPrev(){
  let g={};
  data.forEach(d=>{
@@ -132,9 +113,7 @@ function toggleDate(date){
     <td>${r.org}</td>
     <td>${r.name}</td>
     <td>${r.amt}</td>
-    <td class="${r.status==='Other'?'red':''}">
-     ${r.status==="Other"?r.reason:r.status}
-    </td>
+    <td class="${r.status==='Other'?'red':''}">${r.status==="Other"?r.reason:r.status}</td>
    </tr>`;
   });
   h+="</table>";
@@ -147,6 +126,7 @@ function toggleDate(date){
  }
 }
 
+// ---------- Monthly ----------
 function renderMonth(){
  let g={};
  data.forEach(d=>{
@@ -160,6 +140,7 @@ function renderMonth(){
  month.innerHTML=h;
 }
 
+// ---------- All Records ----------
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
@@ -169,24 +150,30 @@ function renderAll(){
    <td><input id="en-${d.id}" value="${d.name}"></td>
    <td><input type="number" id="ea-${d.id}" value="${d.amt}"></td>
    <td style="position:relative">
-
-    ${d.status==="" ? `<button onclick="del('${d.id}')">Delete</button>` : ``}
-
+    ${d.status==="" ? `<button onclick="saveRow('${d.id}')">Save</button><button onclick="del('${d.id}')">Delete</button>` : ``}
     <select onchange="changeStatus('${d.id}',this.value)">
      <option value="">Status</option>
      <option value="Done">Done</option>
      <option value="Pending">Pending</option>
      <option value="Other">Other</option>
     </select>
-
-    <div class="${d.status==='Other'?'red':''}" style="font-size:12px">
-     ${shortStatus(d)}
-    </div>
-
+    <div class="${d.status==='Other'?'red':''}" style="font-size:12px">${shortStatus(d)}</div>
    </td>
   </tr>`;
  });
  all.innerHTML=h;
+}
+
+// ---------- Row Save ----------
+function saveRow(id){
+ let i=data.findIndex(d=>d.id===id);
+ if(i<0) return;
+ data[i].date=document.getElementById("ed-"+id).value;
+ data[i].org=document.getElementById("eo-"+id).value;
+ data[i].name=document.getElementById("en-"+id).value;
+ data[i].amt=+document.getElementById("ea-"+id).value;
+ save();
+ render();
 }
 
 function del(id){
