@@ -50,14 +50,16 @@ let data=JSON.parse(localStorage.getItem(key)||"[]").map(d=>({
 
 let openDate=null;
 
+// Save to localStorage
 function save(){localStorage.setItem(key,JSON.stringify(data));}
 
+// Short display for status
 function shortStatus(d){
  if(d.status==="Other" && d.reason) return d.reason.split(" ").slice(0,2).join(" ");
  return d.status||"";
 }
 
-// Status change
+// Change status
 function changeStatus(id,val){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
@@ -81,7 +83,7 @@ function render(){
  save();
 }
 
-// ---------- Previous 7 Days ----------
+// Previous 7 Days
 function renderPrev(){
  let g={};
  data.forEach(d=>{
@@ -101,6 +103,7 @@ function renderPrev(){
  prev.innerHTML=h;
 }
 
+// Toggle detail
 function toggleDate(date){
  let row=document.getElementById("detail-"+date);
  if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
@@ -128,7 +131,7 @@ function toggleDate(date){
  }
 }
 
-// ---------- Monthly ----------
+// Monthly summary
 function renderMonth(){
  let g={};
  data.forEach(d=>{
@@ -142,7 +145,7 @@ function renderMonth(){
  month.innerHTML=h;
 }
 
-// ---------- All Records ----------
+// All Records
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
@@ -166,7 +169,7 @@ function renderAll(){
  all.innerHTML=h;
 }
 
-// ---------- Row Save ----------
+// Row Save
 function saveRow(id){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
@@ -178,7 +181,7 @@ function saveRow(id){
  render();
 }
 
-// Delete row
+// Delete
 function del(id){
  if(!confirm("Delete this record?")) return;
  data=data.filter(d=>d.id!==id);
