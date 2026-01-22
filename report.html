@@ -15,7 +15,6 @@ button{padding:5px 8px;border:none;border-radius:5px;cursor:pointer;margin:2px}
 .detailRow{background:#fafafa}
 input{padding:4px;width:95%}
 .clearfix::after{content:"";clear:both;display:table;}
-.red{color:red;font-weight:bold}
 </style>
 </head>
 <body>
@@ -43,40 +42,15 @@ input{padding:4px;width:95%}
 const key="dailyEntries";
 let data=JSON.parse(localStorage.getItem(key)||"[]").map(d=>({
   ...d,
-  id:d.id||Date.now()+Math.random(),
-  status:d.status||"",
-  reason:d.reason||""
+  id:d.id||Date.now()+Math.random()
 }));
 
 let openDate=null;
 
-// Save to localStorage
-function save(){localStorage.setItem(key,JSON.stringify(data));}
-
-// Short display for status in All table
-function shortStatus(d){
- if(d.status==="Other" && d.reason) return d.reason.split(" ").slice(0,2).join(" ");
- return d.status||"";
+function save(){
+ localStorage.setItem(key,JSON.stringify(data));
 }
 
-// Change status
-function changeStatus(id,val){
- let i=data.findIndex(d=>d.id===id);
- if(i<0) return;
- if(val==="Other"){
-  let r=prompt("Enter reason for Other status");
-  if(!r) return;
-  data[i].status="Other";
-  data[i].reason=r.trim();
- } else {
-  data[i].status=val;
-  data[i].reason="";
- }
- save(); // immediately save to localStorage
- render(); // re-render table
-}
-
-// ---------- Render ----------
 function render(){
  renderPrev();
  renderMonth();
@@ -95,7 +69,9 @@ function renderPrev(){
  let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
  Object.keys(g).sort().reverse().slice(0,7).forEach(d=>{
   h+=`<tr class="clickable" onclick="toggleDate('${d}')">
-   <td>${d}</td><td>${g[d].nos}</td><td>${g[d].total.toFixed(2)}</td>
+   <td>${d}</td>
+   <td>${g[d].nos}</td>
+   <td>${g[d].total.toFixed(2)}</td>
   </tr>
   <tr id="detail-${d}" class="detailRow" style="display:none">
    <td colspan="3"></td>
@@ -104,22 +80,20 @@ function renderPrev(){
  prev.innerHTML=h;
 }
 
-// Toggle detail
 function toggleDate(date){
  let row=document.getElementById("detail-"+date);
- if(openDate && openDate!==date) document.getElementById("detail-"+openDate).style.display="none";
+ if(openDate && openDate!==date){
+  document.getElementById("detail-"+openDate).style.display="none";
+ }
 
  if(row.style.display==="none"){
   let rows=data.filter(d=>d.date===date);
-  let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amt</th><th>Status</th></tr>";
+  let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amt</th></tr>";
   rows.forEach(r=>{
-   let st=r.status==="Other"?r.reason:r.status;
-   let cls=r.status==="Other"?"red":"";
    h+=`<tr>
     <td>${r.org}</td>
     <td>${r.name}</td>
     <td>${r.amt}</td>
-    <td class="${cls}">${st}</td>
    </tr>`;
   });
   h+="</table>";
@@ -132,7 +106,7 @@ function toggleDate(date){
  }
 }
 
-// Monthly summary
+// Monthly
 function renderMonth(){
  let g={};
  data.forEach(d=>{
@@ -146,31 +120,24 @@ function renderMonth(){
  month.innerHTML=h;
 }
 
-// All Records
+// All Records (Edit + Delete only)
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
-  h+=`<tr id="row-${d.id}">
+  h+=`<tr>
    <td><input type="date" id="ed-${d.id}" value="${d.date}"></td>
    <td><input id="eo-${d.id}" value="${d.org}"></td>
    <td><input id="en-${d.id}" value="${d.name}"></td>
    <td><input type="number" id="ea-${d.id}" value="${d.amt}"></td>
    <td>
-    ${d.status==="" ? `<button onclick="saveRow('${d.id}')">Save</button><button onclick="del('${d.id}')">Delete</button>` : ``}
-    <select onchange="changeStatus('${d.id}',this.value)">
-     <option value="">Status</option>
-     <option value="Done">Done</option>
-     <option value="Pending">Pending</option>
-     <option value="Other">Other</option>
-    </select>
-    <div class="${d.status==='Other'?'red':''}" style="font-size:12px">${shortStatus(d)}</div>
+    <button onclick="saveRow('${d.id}')">Edit</button>
+    <button onclick="del('${d.id}')">Delete</button>
    </td>
   </tr>`;
  });
  all.innerHTML=h;
 }
 
-// Row Save
 function saveRow(id){
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
@@ -182,20 +149,30 @@ function saveRow(id){
  render();
 }
 
-// Delete
 function del(id){
  if(!confirm("Delete this record?")) return;
  data=data.filter(d=>d.id!==id);
  render();
 }
 
-// Utilities
-function toggleAll(){all.style.display=all.style.display==="none"?"table":"none";}
-function refresh(){data=JSON.parse(localStorage.getItem(key)||"[]"); render();}
-function printReport(){let w=window.open(""); w.document.write(document.querySelector(".container").innerHTML); w.print(); w.close();}
-function openExcel(){localStorage.setItem("excelData",JSON.stringify(data)); window.open("reportExcel.html","_blank");}
+function toggleAll(){
+ all.style.display=all.style.display==="none"?"table":"none";
+}
+function refresh(){
+ data=JSON.parse(localStorage.getItem(key)||"[]");
+ render();
+}
+function printReport(){
+ let w=window.open("");
+ w.document.write(document.querySelector(".container").innerHTML);
+ w.print();
+ w.close();
+}
+function openExcel(){
+ localStorage.setItem("excelData",JSON.stringify(data));
+ window.open("reportExcel.html","_blank");
+}
 
-// Initial render
 render();
 </script>
 
