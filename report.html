@@ -15,6 +15,8 @@ button{padding:5px 8px;border:none;border-radius:5px;cursor:pointer;margin:2px}
 .detailRow{background:#fafafa}
 input{padding:4px;width:95%}
 .clearfix::after{content:"";clear:both;display:table;}
+.undoBox{background:#fff3cd;padding:8px;margin-top:10px;border:1px solid #ffeeba}
+.totalBox{margin-top:10px;font-weight:bold;font-size:16px}
 </style>
 </head>
 <body>
@@ -34,6 +36,13 @@ input{padding:4px;width:95%}
 <h3>Monthly</h3>
 <table id="month"></table>
 
+<div class="totalBox">Grand Total: <span id="grand">0.00</span></div>
+
+<div id="undo" class="undoBox" style="display:none">
+ Record deleted.
+ <button onclick="undoDelete()">Undo</button>
+</div>
+
 <h3 onclick="toggleAll()" class="clickable">All Records ⬇</h3>
 <table id="all" style="display:none"></table>
 </div>
@@ -41,11 +50,13 @@ input{padding:4px;width:95%}
 <script>
 const key="dailyEntries";
 let data=JSON.parse(localStorage.getItem(key)||"[]").map(d=>({
-  ...d,
-  id:d.id||Date.now()+Math.random()
+ ...d,
+ id:d.id||Date.now()+Math.random()
 }));
 
 let openDate=null;
+let lastDeleted=null;
+let undoTimer=null;
 
 function save(){
  localStorage.setItem(key,JSON.stringify(data));
@@ -55,10 +66,11 @@ function render(){
  renderPrev();
  renderMonth();
  renderAll();
+ renderGrand();
  save();
 }
 
-// Previous 7 Days
+// ---------- Previous 7 Days ----------
 function renderPrev(){
  let g={};
  data.forEach(d=>{
@@ -69,9 +81,7 @@ function renderPrev(){
  let h="<tr><th>Date</th><th>NOS</th><th>Total</th></tr>";
  Object.keys(g).sort().reverse().slice(0,7).forEach(d=>{
   h+=`<tr class="clickable" onclick="toggleDate('${d}')">
-   <td>${d}</td>
-   <td>${g[d].nos}</td>
-   <td>${g[d].total.toFixed(2)}</td>
+   <td>${d}</td><td>${g[d].nos}</td><td>${g[d].total.toFixed(2)}</td>
   </tr>
   <tr id="detail-${d}" class="detailRow" style="display:none">
    <td colspan="3"></td>
@@ -82,31 +92,26 @@ function renderPrev(){
 
 function toggleDate(date){
  let row=document.getElementById("detail-"+date);
- if(openDate && openDate!==date){
+ if(openDate && openDate!==date)
   document.getElementById("detail-"+openDate).style.display="none";
- }
 
  if(row.style.display==="none"){
   let rows=data.filter(d=>d.date===date);
   let h="<table style='width:100%'><tr><th>Org</th><th>Name</th><th>Amt</th></tr>";
   rows.forEach(r=>{
-   h+=`<tr>
-    <td>${r.org}</td>
-    <td>${r.name}</td>
-    <td>${r.amt}</td>
-   </tr>`;
+   h+=`<tr><td>${r.org}</td><td>${r.name}</td><td>${r.amt}</td></tr>`;
   });
   h+="</table>";
   row.children[0].innerHTML=h;
   row.style.display="table-row";
   openDate=date;
- } else {
+ }else{
   row.style.display="none";
   openDate=null;
  }
 }
 
-// Monthly
+// ---------- Monthly ----------
 function renderMonth(){
  let g={};
  data.forEach(d=>{
@@ -120,7 +125,14 @@ function renderMonth(){
  month.innerHTML=h;
 }
 
-// All Records (Edit + Delete only)
+// ---------- Grand Total ----------
+function renderGrand(){
+ let t=0;
+ data.forEach(d=>t+=+d.amt);
+ grand.innerText=t.toFixed(2);
+}
+
+// ---------- All Records ----------
 function renderAll(){
  let h="<tr><th>Date</th><th>Org</th><th>Name</th><th>Amt</th><th>Action</th></tr>";
  data.sort((a,b)=>b.date.localeCompare(a.date)).forEach(d=>{
@@ -139,39 +151,45 @@ function renderAll(){
 }
 
 function saveRow(id){
+ id=Number(id);
  let i=data.findIndex(d=>d.id===id);
  if(i<0) return;
  data[i].date=document.getElementById("ed-"+id).value;
  data[i].org=document.getElementById("eo-"+id).value;
  data[i].name=document.getElementById("en-"+id).value;
  data[i].amt=+document.getElementById("ea-"+id).value;
- save();
  render();
 }
 
+// ---------- Delete + Undo ----------
 function del(id){
+ id=Number(id);
  if(!confirm("Delete this record?")) return;
+
+ lastDeleted=data.find(d=>d.id===id);
  data=data.filter(d=>d.id!==id);
+
+ document.getElementById("undo").style.display="block";
+ clearTimeout(undoTimer);
+ undoTimer=setTimeout(()=>{lastDeleted=null;undo.style.display="none"},5000);
+
  render();
 }
 
-function toggleAll(){
- all.style.display=all.style.display==="none"?"table":"none";
+function undoDelete(){
+ if(lastDeleted){
+  data.push(lastDeleted);
+  lastDeleted=null;
+  undo.style.display="none";
+  render();
+ }
 }
-function refresh(){
- data=JSON.parse(localStorage.getItem(key)||"[]");
- render();
-}
-function printReport(){
- let w=window.open("");
- w.document.write(document.querySelector(".container").innerHTML);
- w.print();
- w.close();
-}
-function openExcel(){
- localStorage.setItem("excelData",JSON.stringify(data));
- window.open("reportExcel.html","_blank");
-}
+
+// ---------- Utilities ----------
+function toggleAll(){all.style.display=all.style.display==="none"?"table":"none";}
+function refresh(){data=JSON.parse(localStorage.getItem(key)||"[]"); render();}
+function printReport(){let w=window.open(""); w.document.write(document.querySelector(".container").innerHTML); w.print(); w.close();}
+function openExcel(){localStorage.setItem("excelData",JSON.stringify(data)); window.open("reportExcel.html","_blank");}
 
 render();
 </script>
