@@ -17,6 +17,11 @@ input{padding:4px;width:95%}
 .clearfix::after{content:"";clear:both;display:table;}
 .undoBox{background:#fff3cd;padding:8px;margin-top:10px;border:1px solid #ffeeba}
 .totalBox{margin-top:10px;font-weight:bold;font-size:16px}
+
+/* Status colors */
+.statusDone{background:#d4edda;color:#155724;font-weight:bold}
+.statusReject{background:#fff3cd;color:#856404;font-weight:bold}
+.statusFake{background:#f8d7da;color:#721c24;font-weight:bold}
 </style>
 </head>
 <body>
@@ -51,7 +56,8 @@ input{padding:4px;width:95%}
 const key="dailyEntries";
 let data=JSON.parse(localStorage.getItem(key)||"[]").map(d=>({
  ...d,
- id:d.id||Date.now()+Math.random()
+ id:d.id||Date.now()+Math.random(),
+ status:d.status||""
 }));
 
 let openDate=null;
@@ -144,6 +150,14 @@ function renderAll(){
    <td>
     <button onclick="saveRow('${d.id}')">Edit</button>
     <button onclick="del('${d.id}')">Delete</button>
+
+    <select onchange="setStatus('${d.id}',this.value)" class="${d.status==='Done'?'statusDone':d.status==='Reject'?'statusReject':d.status==='Fake'?'statusFake':''}">
+     <option value="">--Select--</option>
+     <option value="Done" ${d.status==="Done"?"selected":""}>Done</option>
+     <option value="Reject" ${d.status==="Reject"?"selected":""}>Reject</option>
+     <option value="Fake" ${d.status==="Fake"?"selected":""}>Fake</option>
+    </select>
+
    </td>
   </tr>`;
  });
@@ -159,6 +173,15 @@ function saveRow(id){
  data[i].name=document.getElementById("en-"+id).value;
  data[i].amt=+document.getElementById("ea-"+id).value;
  render();
+}
+
+// ---------- Status save ----------
+function setStatus(id,val){
+ id=Number(id);
+ let i=data.findIndex(d=>d.id===id);
+ if(i<0) return;
+ data[i].status=val;
+ save();
 }
 
 // ---------- Delete + Undo ----------
